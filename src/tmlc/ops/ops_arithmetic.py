@@ -51,7 +51,7 @@ class Add(TensorOp):
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 2, "Add op requires exactly 2 input tensors"
         assert inputs[0].shape == inputs[1].shape, "Add op requires tensors to have the same shape"
-        return [inputs[0] + inputs[1]]
+        return [np.asarray(inputs[0] + inputs[1])]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -86,7 +86,7 @@ class Mul(TensorOp):
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 2, "Mul op requires exactly 2 input tensors"
         assert inputs[0].shape == inputs[1].shape, "Mul op requires tensors to have the same shape"
-        return [inputs[0] * inputs[1]]
+        return [np.asarray(inputs[0] * inputs[1])]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -121,7 +121,7 @@ class Div(TensorOp):
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 2, "Div op requires exactly 2 input tensors"
         assert inputs[0].shape == inputs[1].shape, "Div op requires tensors to have the same shape"
-        return [inputs[0] / inputs[1]]
+        return [np.asarray(inputs[0] / inputs[1])]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -195,7 +195,7 @@ class Negate(TensorOp):
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 1, "Negate op requires exactly 1 input tensor"
-        return [-inputs[0]]
+        return [np.asarray(-inputs[0])]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -234,7 +234,7 @@ class Pow(TensorOp):
         assert inputs[0].shape == inputs[1].shape, (
             "Power op requires tensors to have the same shape"
         )
-        return [inputs[0] ** inputs[1]]
+        return [np.asarray(inputs[0] ** inputs[1])]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

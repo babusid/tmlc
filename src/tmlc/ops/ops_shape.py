@@ -116,7 +116,7 @@ class Summation(TensorOp):
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 1, "Summation op requires exactly 1 input tensor"
-        return [np.sum(inputs[0], axis=self.axes)]
+        return [np.asarray(np.sum(inputs[0], axis=self.axes))]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

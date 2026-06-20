@@ -1,3 +1,7 @@
+from beartype.claw import beartype_this_package
+
+beartype_this_package()  # must precede submodule imports below to hook them
+
 from .ndarray import ndarray
 from .tensor import ConstantTensor, Tensor, TensorOp
 from . import _operators  # noqa: F401  (attaches Tensor's operator dunders, see tensor.py)

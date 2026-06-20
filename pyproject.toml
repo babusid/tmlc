@@ -26,6 +26,10 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["tmlc*"]
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
 [tool.black]
 line-length = 100
 

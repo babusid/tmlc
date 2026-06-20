@@ -27,7 +27,7 @@ class Exp(TensorOp):
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 1, "Exp op requires exactly 1 input tensor"
-        return [np.exp(inputs[0])]
+        return [np.asarray(np.exp(inputs[0]))]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -60,7 +60,7 @@ class Log(TensorOp):
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 1, "Log op requires exactly 1 input tensor"
-        return [np.log(inputs[0])]
+        return [np.asarray(np.log(inputs[0]))]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -93,7 +93,7 @@ class Tanh(TensorOp):
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
         assert len(inputs) == 1, "Tanh op requires exactly 1 input tensor"
-        return [np.tanh(inputs[0])]
+        return [np.asarray(np.tanh(inputs[0]))]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -141,7 +141,7 @@ class LogSumExp(TensorOp):
         max_value = np.max(inputs[0], axis=self.axes, keepdims=True)
         shifted = inputs[0] - max_value
         sum_exp = np.sum(np.exp(shifted), axis=self.axes)
-        return [np.log(sum_exp) + np.reshape(max_value, sum_exp.shape)]
+        return [np.asarray(np.log(sum_exp) + np.reshape(max_value, sum_exp.shape))]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

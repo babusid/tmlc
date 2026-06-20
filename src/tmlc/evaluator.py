@@ -8,7 +8,7 @@ from tmlc.ops.ops_basic import Input, Constant
 from tmlc.ops.ops_shape import ones_like
 
 
-def run(inputs: dict[Tensor, ndarray], outputs: list[Tensor]) -> list[list[ndarray] | ndarray]:
+def run(inputs: dict[Tensor, ndarray], outputs: list[Tensor]) -> list[list[ndarray]]:
     # eager mode evaluation
     # 1. reverse topo sort graph from outputs to inputs and
     #    build a traversal / target set of nodes that we have to compute
@@ -32,14 +32,14 @@ def run(inputs: dict[Tensor, ndarray], outputs: list[Tensor]) -> list[list[ndarr
                 "Mismatch in number of input values and node inputs"
             )
             intermediates[node] = node.op.compute(input_values)
-    output: list[list[ndarray] | ndarray] = []
+    output: list[list[ndarray]] = []
     for out in outputs:
         output.append(intermediates[out])
 
     return output
 
 
-def gradients(output_node: Tensor, target_nodes: list[Tensor]):
+def gradients(output_node: Tensor, target_nodes: list[Tensor]) -> list[Tensor]:
     # extend graph with gradients for desired node grads
     # topo sort, then reverse so output is at the front
     # then construct a oneslike node for the output node, then call
@@ -113,11 +113,11 @@ def gradients(output_node: Tensor, target_nodes: list[Tensor]):
     return [node_grad[target] for target in target_nodes]
 
 
-def compile():
+def compile() -> None:
     return
 
 
-def run_compiled():
+def run_compiled() -> None:
     return
 
 
