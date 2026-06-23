@@ -53,9 +53,8 @@ def main():
     x, W, b, y_one_hot_node, train_graph, eval_graph = build_graph()
 
     def forward_backward(W_val: np.ndarray, b_val: np.ndarray):
-        loss_val, grad_W_val, grad_b_val = tmlc.run(
+        loss_val, grad_W_val, grad_b_val = train_graph.run(
             inputs={x: X, y_one_hot_node: y_one_hot, W: W_val, b: b_val},
-            graph=train_graph,
         )
         return loss_val[0], grad_W_val[0], grad_b_val[0]
 
@@ -84,7 +83,7 @@ def main():
         b_val = b_val - lr * grad_b_val
 
     final_loss, _, _ = forward_backward(W_val, b_val)
-    predicted_logits = tmlc.run(inputs={x: X, W: W_val, b: b_val}, graph=eval_graph)[0][0]
+    predicted_logits = eval_graph.run(inputs={x: X, W: W_val, b: b_val})[0][0]
     accuracy = np.mean(np.argmax(predicted_logits, axis=1) == np.argmax(y_one_hot, axis=1))
 
     print(f"initial loss: {initial_loss:.4f}")

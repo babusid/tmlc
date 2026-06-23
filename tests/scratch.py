@@ -12,13 +12,12 @@ out = c + a
 
 forward_graph = tmlc.Graph(inputs=[x, y, z], outputs=[a, b, c])
 
-output = tmlc.run(
+output = forward_graph.run(
     inputs={
         x: np.array([[1, 2], [3, 4]]),
         y: np.array([[5, 6], [7, 8]]),
         z: np.array([[1, 1], [1, 1]]),
     },
-    graph=forward_graph,
 )
 
 print(output)
@@ -26,13 +25,12 @@ print(output)
 diff_graph = tmlc.Graph(inputs=[x, y, z], outputs=[out])
 grad_graph = tmlc.differentiate(graph=diff_graph, output_node=out, target_nodes=[a, b, c])
 
-output = tmlc.run(
+output = grad_graph.run(
     inputs={
         x: np.array([[1, 2], [3, 4]]),
         y: np.array([[5, 6], [7, 8]]),
         z: np.array([[1, 1], [1, 1]]),
     },
-    graph=grad_graph,
 )
 
 print(output)
