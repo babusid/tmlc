@@ -7,11 +7,10 @@ from .ops_basic import Constant, Input, constant, input, ones, zeros
 from .ops_logarithmic import Exp, Log, LogSumExp, Tanh, exp, log, logsumexp, tanh
 from .ops_shape import (
     BroadcastTo,
-    OnesLike,
+    Fill,
     Reshape,
     Summation,
     Transpose,
-    ZerosLike,
     broadcast_to,
     ones_like,
     reshape,

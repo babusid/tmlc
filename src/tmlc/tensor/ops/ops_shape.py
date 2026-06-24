@@ -136,66 +136,52 @@ class Summation(TensorOp):
         return ""
 
 
-class ZerosLike(TensorOp):
+class Fill(TensorOp):
+    """Nullary op producing a constant array of `shape`/`dtype` filled with `value`.
+
+    Unlike `Constant`, the array is not baked in at trace time: it carries no input edges and
+    is materialized lazily in `compute()`. This keeps `zeros_like`/`ones_like` cheap to trace
+    (no eager allocation, no spurious dependency on the tensor they mirror) and gives the
+    eventual MLIR lowering a splat constant to target instead of a literal buffer.
+    """
+
+    shape: tuple[int, ...]
+    value: float
+    dtype: str
+
+    def __init__(self, shape: tuple[int, ...], value: float, dtype: str = "float32"):
+        self.shape = shape
+        self.value = value
+        self.dtype = dtype
+
     @override
     def __call__(
         self,
         inputs: list[Tensor],
         label: str | None = None,
     ) -> Tensor:
+        assert inputs is None or len(inputs) == 0, "Fill op cannot accept any input tensors"
         return Tensor(
-            inputs=inputs,
+            inputs=[],
             op=self,
-            shape=self.infer_shape(inputs=inputs),
+            shape=self.shape,
+            dtype=self.dtype,
             label=label,
         )
 
     @override
     def infer_shape(self, inputs: list[Tensor]) -> tuple[int, ...]:
-        assert len(inputs) == 1, "ZerosLike op requires exactly 1 input tensor"
-        return inputs[0].shape
+        assert inputs is None or len(inputs) == 0, "Fill op cannot accept any input tensors"
+        return self.shape
 
     @override
     def compute(self, inputs: list[ndarray]) -> list[ndarray]:
-        assert len(inputs) == 1, "ZerosLike op requires exactly 1 input tensor"
-        return [np.zeros_like(inputs[0])]
+        assert inputs is None or len(inputs) == 0, "Fill op cannot accept any input tensors"
+        return [np.full(self.shape, self.value, dtype=self.dtype)]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
-        return [zeros_like(tensor.inputs[0])]
-
-    @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
-
-
-class OnesLike(TensorOp):
-    @override
-    def __call__(
-        self,
-        inputs: list[Tensor],
-        label: str | None = None,
-    ) -> Tensor:
-        return Tensor(
-            inputs=inputs,
-            op=self,
-            shape=self.infer_shape(inputs=inputs),
-            label=label,
-        )
-
-    @override
-    def infer_shape(self, inputs: list[Tensor]) -> tuple[int, ...]:
-        assert len(inputs) == 1, "OnesLike op requires exactly 1 input tensor"
-        return inputs[0].shape
-
-    @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
-        assert len(inputs) == 1, "OnesLike op requires exactly 1 input tensor"
-        return [np.ones_like(inputs[0])]
-
-    @override
-    def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
-        return [zeros_like(tensor.inputs[0])]
+        return []  # Fill nodes are nullary: nothing to propagate to
 
     @override
     def emit_ir(self, inputs: list[str]) -> str:
@@ -311,8 +297,8 @@ def summation(
 
 
 def zeros_like(t: Tensor, label: str | None = None) -> Tensor:
-    return ZerosLike()(inputs=[t], label=label)
+    return Fill(shape=t.shape, value=0.0, dtype=t.dtype)(inputs=[], label=label)
 
 
 def ones_like(t: Tensor, label: str | None = None) -> Tensor:
-    return OnesLike()(inputs=[t], label=label)
+    return Fill(shape=t.shape, value=1.0, dtype=t.dtype)(inputs=[], label=label)
