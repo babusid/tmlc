@@ -3,9 +3,8 @@ from __future__ import annotations
 import numpy as np
 from numpy import ndarray
 from typing_extensions import override
-
 from tmlc.tensor.tensor import Tensor, TensorOp
-from tmlc.tensor.ops.ops_shape import _normalize_axes, broadcast_to, reshape
+from tmlc.tensor.ops.ops_shape import normalize_axes, broadcast_to, reshape
 
 
 class Exp(TensorOp):
@@ -28,9 +27,9 @@ class Exp(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Exp op requires exactly 1 input tensor"
-        return [np.asarray(np.exp(inputs[0]))]
+        return np.asarray(np.exp(inputs[0]))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -61,9 +60,9 @@ class Log(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Log op requires exactly 1 input tensor"
-        return [np.asarray(np.log(inputs[0]))]
+        return np.asarray(np.log(inputs[0]))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -94,9 +93,9 @@ class Tanh(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Tanh op requires exactly 1 input tensor"
-        return [np.asarray(np.tanh(inputs[0]))]
+        return np.asarray(np.tanh(inputs[0]))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -131,23 +130,23 @@ class LogSumExp(TensorOp):
     @override
     def infer_shape(self, inputs: list[Tensor]) -> tuple[int, ...]:
         assert len(inputs) == 1, "LogSumExp op requires exactly 1 input tensor"
-        axes = _normalize_axes(axes=self.axes, shape=inputs[0].shape)
+        axes = normalize_axes(axes=self.axes, shape=inputs[0].shape)
         if axes is None:
             return ()
         return tuple(dim for axis, dim in enumerate(inputs[0].shape) if axis not in axes)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "LogSumExp op requires exactly 1 input tensor"
         max_value = np.max(inputs[0], axis=self.axes, keepdims=True)
         shifted = inputs[0] - max_value
         sum_exp = np.sum(np.exp(shifted), axis=self.axes)
-        return [np.asarray(np.log(sum_exp) + np.reshape(max_value, sum_exp.shape))]
+        return np.asarray(np.log(sum_exp) + np.reshape(max_value, sum_exp.shape))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
         input_tensor = tensor.inputs[0]
-        axes = _normalize_axes(axes=self.axes, shape=input_tensor.shape)
+        axes = normalize_axes(axes=self.axes, shape=input_tensor.shape)
         if axes is None:
             reduced_shape = (1,) * len(input_tensor.shape)
         else:
@@ -158,7 +157,9 @@ class LogSumExp(TensorOp):
         broadcast_grad = broadcast_to(
             reshape(incoming_grad, shape=reduced_shape), shape=input_tensor.shape
         )
-        broadcast_output = broadcast_to(reshape(tensor, shape=reduced_shape), shape=input_tensor.shape)
+        broadcast_output = broadcast_to(
+            reshape(tensor, shape=reduced_shape), shape=input_tensor.shape
+        )
         softmax = exp(input_tensor - broadcast_output)
         return [broadcast_grad * softmax]
 

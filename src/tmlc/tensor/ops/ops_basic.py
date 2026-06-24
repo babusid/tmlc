@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing_extensions import override
-from abc import ABC, abstractmethod
 import numpy as np
 from tmlc.ndarray import ndarray
 from tmlc.tensor.tensor import ConstantTensor, Tensor, TensorOp
@@ -30,9 +29,9 @@ class Constant(TensorOp):
         return self.value.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert inputs is None or len(inputs) == 0, "Constant op cannot accept any input tensors"
-        return [self.value]
+        return self.value
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -75,7 +74,7 @@ class Input(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         raise RuntimeError(
             "Input op does not have a compute implementation.",
             "Did you forget to assign an input node a value before evaluating the graph?",

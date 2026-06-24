@@ -111,7 +111,7 @@ class TensorOp(ABC):
         raise NotImplementedError("TensorOp subclasses must implement infer_shape()")
 
     @abstractmethod
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         """Given the input arrays, compute the output arrays of this operation.
 
         This is used by the evaluator to compute the values of the output tensors in the graph. This

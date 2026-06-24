@@ -66,20 +66,20 @@ class Graph:
         """Apply a transform pipeline to the graph"""
         return reduce(lambda graph, fn: fn(graph), transform_fns, self)
 
-    def run(self, inputs: dict[Tensor, ndarray]) -> list[list[ndarray]]:
+    def run(self, inputs: dict[Tensor, ndarray]) -> list[ndarray]:
         outputs = self.outputs
         topo_sort = self.topo_sort
-        intermediates: dict[Tensor, list[ndarray]] = {}
+        intermediates: dict[Tensor, ndarray] = {}
         for node in topo_sort:
             if node in inputs:
-                intermediates[node] = [inputs[node]]
+                intermediates[node] = inputs[node]
             else:
-                input_values = [intermediates[input][0] for input in node.inputs]
+                input_values = [intermediates[input] for input in node.inputs]
                 assert len(input_values) == len(node.inputs), (
                     "Mismatch in number of input values and node inputs"
                 )
                 intermediates[node] = node.op.compute(input_values)
-        output: list[list[ndarray]] = []
+        output: list[ndarray] = []
         for out in outputs:
             output.append(intermediates[out])
 

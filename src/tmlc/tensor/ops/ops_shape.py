@@ -7,7 +7,7 @@ from typing_extensions import override
 from tmlc.tensor.tensor import Tensor, TensorOp
 
 
-def _normalize_axes(
+def normalize_axes(
     axes: tuple[int, ...] | int | None, shape: tuple[int, ...]
 ) -> tuple[int, ...] | None:
     if axes is None:
@@ -73,9 +73,9 @@ class Transpose(TensorOp):
         return tuple(inputs[0].shape[axis] for axis in permutation)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Transpose op requires exactly 1 input tensor"
-        return [np.transpose(inputs[0], axes=self._permutation(shape=inputs[0].shape))]
+        return np.transpose(inputs[0], axes=self._permutation(shape=inputs[0].shape))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -110,20 +110,20 @@ class Summation(TensorOp):
     @override
     def infer_shape(self, inputs: list[Tensor]) -> tuple[int, ...]:
         assert len(inputs) == 1, "Summation op requires exactly 1 input tensor"
-        axes = _normalize_axes(axes=self.axes, shape=inputs[0].shape)
+        axes = normalize_axes(axes=self.axes, shape=inputs[0].shape)
         if axes is None:
             return ()
         return tuple(dim for axis, dim in enumerate(inputs[0].shape) if axis not in axes)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Summation op requires exactly 1 input tensor"
-        return [np.asarray(np.sum(inputs[0], axis=self.axes))]
+        return np.asarray(np.sum(inputs[0], axis=self.axes))
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
         input_shape = tensor.inputs[0].shape
-        axes = _normalize_axes(axes=self.axes, shape=input_shape)
+        axes = normalize_axes(axes=self.axes, shape=input_shape)
         if axes is None:
             reshaped_grad = reshape(incoming_grad, shape=(1,) * len(input_shape))
         else:
@@ -175,9 +175,9 @@ class Fill(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert inputs is None or len(inputs) == 0, "Fill op cannot accept any input tensors"
-        return [np.full(self.shape, self.value, dtype=self.dtype)]
+        return np.full(self.shape, self.value, dtype=self.dtype)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -214,10 +214,10 @@ class Reshape(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "Reshape op requires exactly 1 input tensor"
         assert np.prod(inputs[0].shape) == np.prod(self.shape), "Reshape cannot change tensor size"
-        return [np.reshape(inputs[0], self.shape)]
+        return np.reshape(inputs[0], self.shape)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -254,10 +254,10 @@ class BroadcastTo(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> list[ndarray]:
+    def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 1, "BroadcastTo op requires exactly 1 input tensor"
         _assert_broadcastable(input_shape=inputs[0].shape, target_shape=self.shape)
-        return [np.broadcast_to(inputs[0], self.shape)]
+        return np.broadcast_to(inputs[0], self.shape)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
