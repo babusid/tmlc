@@ -4,7 +4,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import reduce
 from tmlc.tensor.tensor import Tensor
-from tmlc.tensor.ops.ops_shape import ones_like
+from tmlc.tensor.ops.ops_shape import ones_like, zeros_like
 from tmlc.util.topo_sort import dfs_helper_topo_sort
 from tmlc.ndarray import ndarray
 from abc import ABC, abstractmethod
@@ -95,6 +95,11 @@ def differentiate(graph: Graph, output_node: Tensor, target_nodes: list[Tensor])
     rev_topo_sort: list[Tensor] = []
     rev_topo_sort = [t for t in graph.topo_sort]
     rev_topo_sort.reverse()
+    # TODO: some online resources seem to indicate that ones_like isn't always the
+    # right seed for the gradient? It IS correct for scalar losses,
+    # but not for vector-valued outputs. For now, we assume the output
+    # is a scalar loss. This will still work with vector-valued output,
+    # but it'll be the gradient wrt the sum of the outputs
     output_grad = ones_like(output_node, "output_grad")
 
     # now we have all nodes we have to compute gradients for in target_set
@@ -107,6 +112,12 @@ def differentiate(graph: Graph, output_node: Tensor, target_nodes: list[Tensor])
     for node in rev_topo_sort:
         # get all incoming partial gradients, and aggregate them
         incoming_grad = node_grad_incoming[node]
+        if not incoming_grad:
+            # skips nodes in the
+            # reverse that weren't populated by any of their children,
+            # e.g. inputs that don't affect the output
+            continue
+
         sum_grad: Tensor = reduce(lambda a, b: a + b, incoming_grad[1:], incoming_grad[0])
         node_grad[node] = sum_grad
         # pass in aggregate gradient and calculate the gradients
@@ -116,7 +127,10 @@ def differentiate(graph: Graph, output_node: Tensor, target_nodes: list[Tensor])
             # pass in the appropriate gradients
             node_grad_incoming[input].append(input_grad)
 
-    bwd_outputs = [node_grad[target] for target in target_nodes]
+    bwd_outputs = [
+        node_grad.get(target, zeros_like(target))
+        for target in target_nodes
+    ]
     return Graph(graph.inputs, bwd_outputs)
 
 
