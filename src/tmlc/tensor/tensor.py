@@ -46,7 +46,7 @@ class Tensor:
         # TODO: support more dtypes
         # TODO: inheirit dtypes from input tensors
         # TODO: dtype promotion logic for mismatched input tensor
-        self.dtype = dtype
+        self.dtype = "float32"
 
     @override
     def __str__(self):
