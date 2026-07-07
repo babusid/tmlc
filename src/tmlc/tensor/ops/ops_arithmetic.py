@@ -30,6 +30,7 @@ def _broadcast_pair(t1: Tensor, t2: Tensor) -> tuple[Tensor, Tensor]:
 
 
 class Add(TensorOp):
+    commutative = True
     @override
     def __call__(
         self,
@@ -65,6 +66,7 @@ class Add(TensorOp):
 
 
 class Mul(TensorOp):
+    commutative = True
     @override
     def __call__(
         self,

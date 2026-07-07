@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from itertools import permutations
 from typing import Callable
 from typing_extensions import override
 
 from tmlc import Tensor
+from tmlc.tensor.traits import is_commutative
 
 from .pattern import Env, Pattern
 
@@ -55,4 +57,8 @@ class Op(Pattern):
             return
         if len(node.inputs) != len(self.input_patterns):
             return
-        yield from _match_inputs(self.input_patterns, list(node.inputs), env_out)
+        orderings = (
+            permutations(node.inputs) if is_commutative(node.op) else [node.inputs]
+        )
+        for ordering in orderings:
+            yield from _match_inputs(self.input_patterns, list(ordering), env_out)

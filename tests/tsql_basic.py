@@ -2,6 +2,7 @@ import numpy as np
 import tmlc
 from tmlc.tsql import Var, Const, Op, Ref, EqualTo, match_pattern
 from tmlc.tensor.ops.ops_arithmetic import Add, Mul
+from tmlc.tensor.ops.ops_arithmetic import Matmul
 
 x = tmlc.input(shape=(2,), label="x")
 a = tmlc.constant(np.ones((2,)), label="a")
@@ -62,5 +63,23 @@ neq_sum = c1 + c3
 neq_graph = tmlc.Graph(inputs=[], outputs=[neq_sum])
 neq_matches = list(match_pattern(neq_graph, Op(Add, [Var("s"), EqualTo("s")])))
 assert len(neq_matches) == 0
+
+# Commutativity: Op(Add, [Const, Var]) matches both x+a and a+x
+comm_graph = tmlc.Graph(inputs=[x], outputs=[x + a])
+comm_pattern = Op(Add, [Const("c"), Var("v")])
+comm_matches = list(match_pattern(comm_graph, comm_pattern))
+# x + a is built as Add(x, broadcast_to(a)) — const is second operand,
+# but the commutative permutation should still find it
+assert len(comm_matches) == 1
+assert isinstance(comm_matches[0].env["c"].op, tmlc.Constant)
+
+# Matmul is NOT commutative — wrong operand order should not match
+mm_result = tmlc.mm(tmlc.reshape(x, (1, 2)), tmlc.reshape(x, (2, 1)))
+mm_graph = tmlc.Graph(inputs=[x], outputs=[mm_result])
+mm_pattern = Op(Matmul, [Var("a"), Var("b")])
+mm_matches = list(match_pattern(mm_graph, mm_pattern))
+assert len(mm_matches) == 1
+assert mm_matches[0].env["a"].shape == (1, 2)
+assert mm_matches[0].env["b"].shape == (2, 1)
 
 print("all assertions passed")
