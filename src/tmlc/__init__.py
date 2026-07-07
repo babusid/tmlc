@@ -47,6 +47,7 @@ from .tensor import (
     zeros_like,
 )
 from .graph.graph import Graph, differentiate
+from .tsql import Pattern, Match, Env
 
 __all__ = [
     "ndarray",
@@ -92,4 +93,7 @@ __all__ = [
     "Reshape",
     "Summation",
     "Transpose",
+    "Pattern",
+    "Match",
+    "Env",
 ]
