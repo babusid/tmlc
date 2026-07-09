@@ -97,6 +97,13 @@ class Graph:
 
         return output
 
+    def replace(self, replacements: dict[Tensor, Tensor]) -> Graph:
+        """
+        Return a new graph with the given replacements applied to the nodes.
+        """
+        # TODO:
+        return Graph(tuple(), tuple())
+
     def compile(self) -> None:
         return
 

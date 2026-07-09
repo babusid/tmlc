@@ -1,8 +1,8 @@
 from __future__ import annotations
 from collections.abc import Iterator
 from abc import ABC, abstractmethod
-from typing import TypeAlias
-from tmlc import Tensor
+from typing import TypeAlias, overload
+from tmlc import ConstantTensor, Tensor
 
 '''
 Env is the binding environment for a match object.
@@ -18,6 +18,21 @@ class Match:
     def __init__(self, node: Tensor, env: Env) -> None:
         self.anchor: Tensor = node
         self.env: Env = env
+
+    @overload
+    def get_binding(self, key: str, cls: type[ConstantTensor]) -> ConstantTensor: ...
+    @overload
+    def get_binding(self, key: str, cls: type[Tensor] = Tensor) -> Tensor: ...
+    def get_binding(self, key: str, cls: type[Tensor] = Tensor) -> Tensor:
+        '''
+        Returns the node bound to the given key in the match's environment.
+        User can specify that the binding must be of a specific type (e.g. ConstantTensor)
+        and a TypeError will be raised if the binding is not of that type.
+        '''
+        value = self.env[key]
+        if not isinstance(value, cls):
+            raise TypeError(f"binding {key!r} expected {cls.__name__}, got {type(value).__name__}")
+        return value
 
 class Pattern(ABC):
     '''

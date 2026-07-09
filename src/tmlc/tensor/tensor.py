@@ -82,11 +82,11 @@ class ConstantTensor(Tensor):
     The value of a Constant tensor is stored in the `constval` field.
     """
 
-    constval: ndarray
+    value: ndarray
 
     def __init__(self, value: ndarray, op: TensorOp, label: str | None = None):
         super().__init__(inputs=tuple(), op=op, label=label, shape=value.shape)
-        self.constval = value
+        self.value = value
 
 
 class TensorOp(ABC):
