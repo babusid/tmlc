@@ -17,14 +17,14 @@ class Constant(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         assert inputs is None or len(inputs) == 0, "Constant op cannot accept any input tensors"
         return ConstantTensor(value=self.value, op=self, label=label)
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert inputs is None or len(inputs) == 0, "Constant op cannot accept any input tensors"
         return self.value.shape
 
@@ -57,7 +57,7 @@ class Input(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         assert inputs is None or len(inputs) == 0, "Input op cannot accept any input tensors"
@@ -69,7 +69,7 @@ class Input(TensorOp):
         )
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert inputs is None or len(inputs) == 0, "Input op cannot accept any input tensors"
         return self.shape
 

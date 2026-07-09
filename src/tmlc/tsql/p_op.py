@@ -57,8 +57,6 @@ class Op(Pattern):
             return
         if len(node.inputs) != len(self.input_patterns):
             return
-        orderings = (
-            permutations(node.inputs) if is_commutative(node.op) else [node.inputs]
-        )
+        orderings = permutations(node.inputs) if is_commutative(node.op) else [node.inputs]
         for ordering in orderings:
             yield from _match_inputs(self.input_patterns, list(ordering), env_out)

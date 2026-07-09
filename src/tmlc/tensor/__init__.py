@@ -64,5 +64,5 @@ __all__ = [
     "summation",
     "transpose",
     "zeros_like",
-    "CommutativeOp"
+    "CommutativeOp",
 ]

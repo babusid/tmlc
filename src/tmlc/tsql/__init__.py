@@ -8,7 +8,14 @@ from .p_eq import EqualTo
 from .matcher import match_pattern
 
 __all__ = [
-    "Pattern", "Match", "Env",
-    "Any", "Var", "Const", "Op", "Ref", "EqualTo",
+    "Pattern",
+    "Match",
+    "Env",
+    "Any",
+    "Var",
+    "Const",
+    "Op",
+    "Ref",
+    "EqualTo",
     "match_pattern",
 ]

@@ -8,6 +8,7 @@ from .tensor import TensorOp
 @runtime_checkable
 class CommutativeOp(Protocol):
     """Marker protocol: this op's inputs may be matched in any order."""
+
     commutative: bool
 
 

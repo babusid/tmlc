@@ -10,7 +10,7 @@ b = a * z
 c = b * a
 out = c + a
 
-forward_graph = tmlc.Graph(inputs=[x, y, z], outputs=[a, b, c])
+forward_graph = tmlc.Graph([a, b, c])
 
 output = forward_graph.run(
     inputs={
@@ -22,7 +22,7 @@ output = forward_graph.run(
 
 print(output)
 
-diff_graph = tmlc.Graph(inputs=[x, y, z], outputs=[out])
+diff_graph = tmlc.Graph([out])
 grad_graph = tmlc.differentiate(graph=diff_graph, output_node=out, target_nodes=[a, b, c])
 
 output = grad_graph.run(

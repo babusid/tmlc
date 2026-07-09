@@ -11,7 +11,7 @@ class Exp(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         return Tensor(
@@ -22,7 +22,7 @@ class Exp(TensorOp):
         )
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 1, "Exp op requires exactly 1 input tensor"
         return inputs[0].shape
 
@@ -44,7 +44,7 @@ class Log(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         return Tensor(
@@ -55,7 +55,7 @@ class Log(TensorOp):
         )
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 1, "Log op requires exactly 1 input tensor"
         return inputs[0].shape
 
@@ -77,7 +77,7 @@ class Tanh(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         return Tensor(
@@ -88,7 +88,7 @@ class Tanh(TensorOp):
         )
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 1, "Tanh op requires exactly 1 input tensor"
         return inputs[0].shape
 
@@ -117,7 +117,7 @@ class LogSumExp(TensorOp):
     @override
     def __call__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
         return Tensor(
@@ -128,7 +128,7 @@ class LogSumExp(TensorOp):
         )
 
     @override
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 1, "LogSumExp op requires exactly 1 input tensor"
         axes = normalize_axes(axes=self.axes, shape=inputs[0].shape)
         if axes is None:

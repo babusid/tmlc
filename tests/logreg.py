@@ -40,10 +40,10 @@ def build_graph():
     correct_logit = tmlc.summation(logits * y_one_hot, axes=(1,))
     loss = tmlc.summation(log_partition - correct_logit, axes=(0,)) / BATCH_SIZE
 
-    loss_graph = tmlc.Graph(inputs=[x, y_one_hot, W, b], outputs=[loss])
+    loss_graph = tmlc.Graph([loss])
     grad_graph = tmlc.differentiate(graph=loss_graph, output_node=loss, target_nodes=[W, b])
-    train_graph = tmlc.Graph(inputs=grad_graph.inputs, outputs=[loss, *grad_graph.outputs])
-    eval_graph = tmlc.Graph(inputs=[x, W, b], outputs=[logits])
+    train_graph = tmlc.Graph([loss, *grad_graph.outputs])
+    eval_graph = tmlc.Graph([logits])
     return x, W, b, y_one_hot, train_graph, eval_graph
 
 
@@ -71,9 +71,9 @@ def main():
     loss_plus, _, _ = forward_backward(W_plus, b_val)
     loss_minus, _, _ = forward_backward(W_minus, b_val)
     numerical_grad = (loss_plus - loss_minus) / (2 * eps)
-    assert np.isclose(base_grad_W[i, j], numerical_grad, rtol=1e-3, atol=1e-3), (
-        f"autodiff grad {base_grad_W[i, j]} != numerical grad {numerical_grad}"
-    )
+    assert np.isclose(
+        base_grad_W[i, j], numerical_grad, rtol=1e-3, atol=1e-3
+    ), f"autodiff grad {base_grad_W[i, j]} != numerical grad {numerical_grad}"
 
     initial_loss = float(base_loss)
     lr = 0.5

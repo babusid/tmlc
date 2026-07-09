@@ -4,16 +4,18 @@ from abc import ABC, abstractmethod
 from typing import TypeAlias, overload
 from tmlc import ConstantTensor, Tensor
 
-'''
+"""
 Env is the binding environment for a match object.
 A Pattern Match contains a mapping between the entities in the pattern,
 and the actual nodes in the graph that were matched.
-'''
+"""
 Env: TypeAlias = dict[str, Tensor]
 
-'''
+"""
 Match is a container for the result of a successful pattern match.
-'''
+"""
+
+
 class Match:
     def __init__(self, node: Tensor, env: Env) -> None:
         self.anchor: Tensor = node
@@ -24,40 +26,42 @@ class Match:
     @overload
     def get_binding(self, key: str, cls: type[Tensor] = Tensor) -> Tensor: ...
     def get_binding(self, key: str, cls: type[Tensor] = Tensor) -> Tensor:
-        '''
+        """
         Returns the node bound to the given key in the match's environment.
         User can specify that the binding must be of a specific type (e.g. ConstantTensor)
         and a TypeError will be raised if the binding is not of that type.
-        '''
+        """
         value = self.env[key]
         if not isinstance(value, cls):
             raise TypeError(f"binding {key!r} expected {cls.__name__}, got {type(value).__name__}")
         return value
 
+
 class Pattern(ABC):
-    '''
+    """
     A Pattern is a template for matching subgraphs in a computational graph.
     Given a node in the graph, a Pattern can be used to determine if the subgraph rooted at that
     node matches the pattern. If it does, the Pattern returns a Match object containing the
     matched node and any variable bindings (environment) that were found during the match.
-    '''
+    """
+
     def __init__(self, label: str, input_patterns: list[Pattern]) -> None:
         self.label: str = label
         self.input_patterns: list[Pattern] = input_patterns
 
     def match(self, node: Tensor) -> Match | None:
-        '''
+        """
         Public-facing API just requires the Tensor itself.
         All binding environment mechanics are handled internally.
-        '''
+        """
         env = next(self._match(node, {}), None)
         return None if env is None else Match(node, env)
 
     @abstractmethod
     def _match(self, node: Tensor, env: Env) -> Iterator[Env]:
-        '''
+        """
         Internal method that performs the actual matching logic.
         Subclasses should implement the recursive matching logic here,
         yielding binding environments for each successful match.
-        '''
+        """
         raise NotImplementedError("Subclasses must implement _match method")

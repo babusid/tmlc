@@ -3,10 +3,12 @@ from collections.abc import Iterator
 from typing_extensions import override
 from tmlc import Tensor, Constant
 
+
 class Const(Pattern):
-    '''
+    """
     A Pattern that matches a constant Tensor in the graph.
-    '''
+    """
+
     def __init__(self, label: str) -> None:
         super().__init__(label, input_patterns=[])
 

@@ -20,7 +20,7 @@ class Tensor:
     the graph. The actual data is held in buffers that are supplied at evaluation time.
     """
 
-    inputs: tuple[Tensor,...]
+    inputs: tuple[Tensor, ...]
     op: TensorOp
     label: str
     shape: tuple[int, ...]
@@ -28,7 +28,7 @@ class Tensor:
 
     def __init__(
         self,
-        inputs: tuple[Tensor,...],
+        inputs: tuple[Tensor, ...],
         op: TensorOp,
         shape: tuple[int, ...],
         label: str | None = None,
@@ -103,7 +103,7 @@ class TensorOp(ABC):
         raise NotImplementedError("TensorOp subclasses must implement __call__")
 
     @abstractmethod
-    def infer_shape(self, inputs: tuple[Tensor,...]) -> tuple[int, ...]:
+    def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         """
         Given the input tensors (which contain their shapes), infer the shape of the
         output tensor that this operation will produce.

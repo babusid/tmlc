@@ -10,7 +10,7 @@ b = tmlc.constant(np.ones((2,)) * 2, label="b")
 
 # x + a + b  ->  Add(Add(x, a), b)
 out = x + a + b
-graph = tmlc.Graph(inputs=[x], outputs=[out])
+graph = tmlc.Graph([out])
 
 # Const matches constant nodes only
 const_matches = list(match_pattern(graph, Const("c")))
@@ -37,14 +37,14 @@ assert len(mul_matches) == 0
 # Ref: identity back-reference
 # Build a graph where the same node is used twice: a * a
 sq = a * a
-sq_graph = tmlc.Graph(inputs=[], outputs=[sq])
+sq_graph = tmlc.Graph([sq])
 ref_matches = list(match_pattern(sq_graph, Op(Mul, [Var("v"), Ref("v")])))
 assert len(ref_matches) == 1
 assert ref_matches[0].env["v"] is a
 
 # Ref does NOT match when the two inputs are different nodes
 diff = a * b
-diff_graph = tmlc.Graph(inputs=[], outputs=[diff])
+diff_graph = tmlc.Graph([diff])
 ref_no_match = list(match_pattern(diff_graph, Op(Mul, [Var("v"), Ref("v")])))
 assert len(ref_no_match) == 0
 
@@ -53,19 +53,19 @@ c1 = tmlc.constant(np.ones((2,)))
 c2 = tmlc.constant(np.ones((2,)))  # distinct object, same value
 assert c1 is not c2
 eq_sum = c1 + c2
-eq_graph = tmlc.Graph(inputs=[], outputs=[eq_sum])
+eq_graph = tmlc.Graph([eq_sum])
 eq_matches = list(match_pattern(eq_graph, Op(Add, [Var("s"), EqualTo("s")])))
 assert len(eq_matches) == 1
 
 # EqualTo does NOT match when values differ
 c3 = tmlc.constant(np.zeros((2,)))
 neq_sum = c1 + c3
-neq_graph = tmlc.Graph(inputs=[], outputs=[neq_sum])
+neq_graph = tmlc.Graph([neq_sum])
 neq_matches = list(match_pattern(neq_graph, Op(Add, [Var("s"), EqualTo("s")])))
 assert len(neq_matches) == 0
 
 # Commutativity: Op(Add, [Const, Var]) matches both x+a and a+x
-comm_graph = tmlc.Graph(inputs=[x], outputs=[x + a])
+comm_graph = tmlc.Graph([x + a])
 comm_pattern = Op(Add, [Const("c"), Var("v")])
 comm_matches = list(match_pattern(comm_graph, comm_pattern))
 # x + a is built as Add(x, broadcast_to(a)) — const is second operand,
@@ -75,7 +75,7 @@ assert isinstance(comm_matches[0].env["c"].op, tmlc.Constant)
 
 # Matmul is NOT commutative — wrong operand order should not match
 mm_result = tmlc.mm(tmlc.reshape(x, (1, 2)), tmlc.reshape(x, (2, 1)))
-mm_graph = tmlc.Graph(inputs=[x], outputs=[mm_result])
+mm_graph = tmlc.Graph([mm_result])
 mm_pattern = Op(Matmul, [Var("a"), Var("b")])
 mm_matches = list(match_pattern(mm_graph, mm_pattern))
 assert len(mm_matches) == 1
