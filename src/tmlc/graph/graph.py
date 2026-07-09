@@ -68,6 +68,9 @@ class Graph:
         return set(self._outputs)
 
     def _derive_inputs(self) -> tuple[Tensor, ...]:
+        """
+        Derive the input nodes of the graph by filtering the topological sort for Input nodes.
+        """
         return tuple(node for node in self._topo_sort if isinstance(node.op, Input))
 
     def _build_topo_sort(self) -> list[Tensor]:
@@ -83,6 +86,7 @@ class Graph:
         return reduce(lambda graph, fn: fn(graph), transform_fns, self)
 
     def run(self, inputs: dict[Tensor, ndarray]) -> list[ndarray]:
+        """Run the graph with the given inputs, returning the outputs as a list of ndarrays."""
         outputs = self.outputs
         topo_sort = self.topo_sort
         intermediates: dict[Tensor, ndarray] = {}
@@ -129,6 +133,9 @@ class Graph:
 
 
 def differentiate(graph: Graph, output_node: Tensor, target_nodes: list[Tensor]) -> Graph:
+    """
+    Compute the gradients of the output_node with respect to the target_nodes in the graph.
+    """
     rev_topo_sort: list[Tensor] = []
     rev_topo_sort = [t for t in graph.topo_sort]
     rev_topo_sort.reverse()

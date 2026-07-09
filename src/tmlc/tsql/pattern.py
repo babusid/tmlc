@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections.abc import Iterator
 from abc import ABC, abstractmethod
-from typing import TypeAlias, overload
+from typing import TypeAlias, overload, override
 from tmlc import ConstantTensor, Tensor
 
 """
@@ -44,6 +44,14 @@ class Pattern(ABC):
     node matches the pattern. If it does, the Pattern returns a Match object containing the
     matched node and any variable bindings (environment) that were found during the match.
     """
+
+    @override
+    def __str__(self):
+        return f"{self.__class__.__name__}()"
+
+    @override
+    def __repr__(self):
+        return str(self)
 
     def __init__(self, label: str, input_patterns: list[Pattern]) -> None:
         self.label: str = label

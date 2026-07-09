@@ -51,7 +51,13 @@ class Tensor:
     @override
     def __str__(self):
         inputs = ", ".join(str(tensor) for tensor in self.inputs)
-        return f"Tensor(op={self.label}, inputs=[{inputs}])"
+        return (
+            f"Tensor(inputs=[{inputs}],"
+            + f"op={self.op},"
+            + f"shape={self.shape},"
+            + f"label={self.label},"
+            + f"dtype={self.dtype}"
+        )
 
     @override
     def __repr__(self):
@@ -91,6 +97,10 @@ class ConstantTensor(Tensor):
 
 class TensorOp(ABC):
     """TensorOp interface represents an operation that can be performed on Tensors."""
+
+    @override
+    def __str__(self):
+        return f"{self.__class__.__name__}()"
 
     @abstractmethod
     def __call__(

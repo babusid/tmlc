@@ -41,9 +41,9 @@ class Op(Pattern):
         where: Callable[[Tensor], bool] | None = None,
     ) -> None:
         super().__init__(label or "", input_patterns=inputs or [])
-        self.spec = spec
-        self.where = where
-        self._has_label = label is not None
+        self.spec: type = spec
+        self.where: Callable[[Tensor], bool] | None = where
+        self._has_label: bool = label is not None
 
     @override
     def _match(self, node: Tensor, env: Env) -> Iterator[Env]:
