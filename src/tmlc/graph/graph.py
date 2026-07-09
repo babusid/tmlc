@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import reduce
 from tmlc.tensor.tensor import Tensor
+from tmlc.tensor.ops.ops_basic import Input
 from tmlc.tensor.ops.ops_shape import ones_like, zeros_like
 from tmlc.util.topo_sort import dfs_helper_topo_sort
 from tmlc.ndarray import ndarray
@@ -41,10 +42,10 @@ class Graph:
     _outputs: tuple[Tensor, ...]
     _topo_sort: tuple[Tensor, ...]
 
-    def __init__(self, inputs: Sequence[Tensor], outputs: Sequence[Tensor]) -> None:
-        self._inputs = tuple(inputs)
+    def __init__(self, outputs: Sequence[Tensor]) -> None:
         self._outputs = tuple(outputs)
         self._topo_sort = tuple(self._build_topo_sort())
+        self._inputs = self._derive_inputs()
 
     @property
     def inputs(self) -> tuple[Tensor, ...]:
@@ -66,6 +67,9 @@ class Graph:
     def output_set(self) -> set[Tensor]:
         return set(self._outputs)
 
+    def _derive_inputs(self) -> tuple[Tensor, ...]:
+        return tuple(node for node in self._topo_sort if isinstance(node.op, Input))
+
     def _build_topo_sort(self) -> list[Tensor]:
         """Return a topological sort of the graph's nodes."""
         visited: set[Tensor] = set()
@@ -85,11 +89,13 @@ class Graph:
         for node in topo_sort:
             if node in inputs:
                 intermediates[node] = inputs[node]
-            else:
-                input_values = [intermediates[input] for input in node.inputs]
-                assert len(input_values) == len(node.inputs), (
-                    "Mismatch in number of input values and node inputs"
+            elif isinstance(node.op, Input):
+                raise RuntimeError(
+                    f"Input node '{node.label}' (shape={node.shape}) was not provided a value."
+                    + "Pass it in the inputs dict passed to run()."
                 )
+            else:
+                input_values = [intermediates[inp] for inp in node.inputs]
                 intermediates[node] = node.op.compute(input_values)
         output: list[ndarray] = []
         for out in outputs:
@@ -98,11 +104,22 @@ class Graph:
         return output
 
     def replace(self, replacements: dict[Tensor, Tensor]) -> Graph:
-        """
-        Return a new graph with the given replacements applied to the nodes.
-        """
-        # TODO:
-        return Graph(tuple(), tuple())
+        """Return a new graph with old nodes swapped for their replacements.
+        Downstream nodes are rebuilt with updated inputs; everything else is reused as-is."""
+        memo: dict[Tensor, Tensor] = dict(replacements) #copy
+
+        def rebuild(node: Tensor) -> Tensor:
+            if node in memo:
+                return memo[node]
+            new_inputs = tuple(rebuild(inp) for inp in node.inputs)
+            if new_inputs == node.inputs:
+                memo[node] = node
+            else:
+                memo[node] = node.op(new_inputs, label=node.label)
+            return memo[node]
+
+        new_outputs = [rebuild(out) for out in self._outputs]
+        return Graph(new_outputs)
 
     def compile(self) -> None:
         return
@@ -148,4 +165,4 @@ def differentiate(graph: Graph, output_node: Tensor, target_nodes: list[Tensor])
             node_grad_incoming[input].append(input_grad)
 
     bwd_outputs = [node_grad.get(target, zeros_like(target)) for target in target_nodes]
-    return Graph(graph.inputs, bwd_outputs)
+    return Graph(bwd_outputs)
