@@ -1,7 +1,7 @@
 import numpy as np
 import tmlc
 from tmlc.tsql import Pattern, Const, Op, match_pattern
-from tmlc.tensor import CommutativeOp, ConstantTensor
+from tmlc.tensor import CommutativeOp, ConstantTensor, Add, Mul, BroadcastTo
 from tmlc.graph import Graph, GraphTransform
 from typing_extensions import override
 
@@ -13,7 +13,7 @@ class ConstantFold(GraphTransform):
         # contains root nodes that are ops with inputs that are leaves
         matches = list(match_pattern(graph, fold_pattern))
         ret_graph: Graph = graph
-        while len(matches):
+        while matches:
             for match in matches:
                 op_node = match.anchor  # the root node
                 c1_node = match.get_binding("c1", ConstantTensor)  # the two constant inputs
@@ -25,6 +25,6 @@ class ConstantFold(GraphTransform):
                 # replace the op node in the graph with the new constant node
                 ret_graph = ret_graph.replace({op_node: new_const_node})
             # re-match after replacements
-            matches = list(match_pattern(graph, fold_pattern))
+            matches = list(match_pattern(ret_graph, fold_pattern))
 
         return ret_graph

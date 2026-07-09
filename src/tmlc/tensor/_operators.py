@@ -15,7 +15,7 @@ from tmlc.tensor.ops.ops_shape import transpose
 
 def ensure_tensor(other: Tensor | float | int) -> Tensor:
     if isinstance(other, (int, float)):
-        return constant(other, label=str(other))
+        return constant(other)
     return other
 
 

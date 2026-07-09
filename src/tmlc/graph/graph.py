@@ -106,7 +106,7 @@ class Graph:
     def replace(self, replacements: dict[Tensor, Tensor]) -> Graph:
         """Return a new graph with old nodes swapped for their replacements.
         Downstream nodes are rebuilt with updated inputs; everything else is reused as-is."""
-        memo: dict[Tensor, Tensor] = dict(replacements) #copy
+        memo: dict[Tensor, Tensor] = dict(replacements)  # copy
 
         def rebuild(node: Tensor) -> Tensor:
             if node in memo:

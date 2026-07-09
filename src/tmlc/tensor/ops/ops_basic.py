@@ -21,7 +21,11 @@ class Constant(TensorOp):
         label: str | None = None,
     ) -> Tensor:
         assert inputs is None or len(inputs) == 0, "Constant op cannot accept any input tensors"
-        return ConstantTensor(value=self.value, op=self, label=label)
+        return ConstantTensor(
+            value=self.value,
+            op=self,
+            label=f"{label}={self.value}" if label else f"const={self.value}",
+        )
 
     @override
     def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
