@@ -36,7 +36,7 @@ class EqualTo(Pattern):
     """
 
     def __init__(self, label: str) -> None:
-        super().__init__(label, input_patterns=[])
+        super().__init__(label=label)
 
     @override
     def _match(self, node: Tensor, env: Env) -> Iterator[Env]:

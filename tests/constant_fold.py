@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import tmlc
-from tmlc.tsql import Var, Const, Op, Ref, EqualTo, match_pattern
+from tmlc.tsql import Var, Const, Ref, EqualTo, match_pattern
 from tmlc.tensor.ops.ops_arithmetic import Add, Mul
 from tmlc.transforms.ConstantFold import ConstantFold
 

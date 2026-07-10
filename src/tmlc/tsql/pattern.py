@@ -1,19 +1,12 @@
 from __future__ import annotations
+
 from collections.abc import Iterator
-from abc import ABC, abstractmethod
-from typing import TypeAlias, override
-from tmlc import Tensor
+from itertools import permutations
+from typing import Callable, TypeAlias, override
+from tmlc import Tensor, Constant
+from tmlc.tensor.traits import is_commutative
 
-"""
-Env is the binding environment for a match object.
-A Pattern Match contains a mapping between the entities in the pattern,
-and the actual nodes in the graph that were matched.
-"""
 Env: TypeAlias = dict[str, Tensor]
-
-"""
-Match is a container for the result of a successful pattern match.
-"""
 
 
 class Match:
@@ -22,45 +15,79 @@ class Match:
         self.env: Env = env
 
     def __getitem__(self, key: str) -> Tensor:
-        """
-        Returns the node bound to the given key in the match's environment.
-        """
         return self.env[key]
 
 
-class Pattern(ABC):
+class Pattern:
     """
-    A Pattern is a template for matching subgraphs in a computational graph.
-    Given a node in the graph, a Pattern can be used to determine if the subgraph rooted at that
-    node matches the pattern. If it does, the Pattern returns a Match object containing the
-    matched node and any variable bindings (environment) that were found during the match.
+    Universal pattern primitive for matching subgraphs in a computational graph.
+    Matches a node whose op is an instance of spec, passes where (if given), and
+    recursively matches input sub-patterns positionally (with commutativity support).
+    Binds the matched node to label if one is given.
+
+    Ref and EqualTo subclass this and override _match for env-based back-reference logic.
     """
 
-    @override
-    def __str__(self):
-        return f"{self.__class__.__name__}()"
+    def __init__(
+        self,
+        spec: type = object,
+        inputs: list[Pattern] | None = None,
+        label: str | None = None,
+        where: Callable[[Tensor], bool] | None = None,
+    ) -> None:
+        self.spec = spec
+        self.label: str = label or ""
+        self._has_label: bool = label is not None
+        self.input_patterns: list[Pattern] = inputs or []
+        self.where = where
 
     @override
-    def __repr__(self):
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}({self.spec.__name__})"
+
+    @override
+    def __repr__(self) -> str:
         return str(self)
 
-    def __init__(self, label: str, input_patterns: list[Pattern]) -> None:
-        self.label: str = label
-        self.input_patterns: list[Pattern] = input_patterns
-
     def match(self, node: Tensor) -> Match | None:
-        """
-        Public-facing API just requires the Tensor itself.
-        All binding environment mechanics are handled internally.
-        """
         env = next(self._match(node, {}), None)
         return None if env is None else Match(node, env)
 
-    @abstractmethod
+    def _match_inputs(
+        self,
+        subpats: list[Pattern],
+        nodes: list[Tensor],
+        env: Env,
+    ) -> Iterator[Env]:
+        if not subpats:
+            yield env
+            return
+        first, *rest = subpats
+        fnode, *rnodes = nodes
+        for env1 in first._match(fnode, env):
+            yield from self._match_inputs(rest, rnodes, env1)
+
     def _match(self, node: Tensor, env: Env) -> Iterator[Env]:
-        """
-        Internal method that performs the actual matching logic.
-        Subclasses should implement the recursive matching logic here,
-        yielding binding environments for each successful match.
-        """
-        raise NotImplementedError("Subclasses must implement _match method")
+        if not isinstance(node.op, self.spec):
+            return
+        if self.where is not None and not self.where(node):
+            return
+        env_out = {**env, self.label: node} if self._has_label else env
+        if not self.input_patterns:
+            yield env_out
+            return
+        if len(node.inputs) != len(self.input_patterns):
+            return
+        orderings = permutations(node.inputs) if is_commutative(node.op) else [node.inputs]
+        for ordering in orderings:
+            yield from self._match_inputs(self.input_patterns, list(ordering), env_out)
+
+
+def Var(label: str) -> Pattern:
+    """Matches any node and binds it to label."""
+    return Pattern(label=label)
+
+
+def Const(label: str) -> Pattern:
+    """Matches a Constant node and binds it to label."""
+    return Pattern(Constant, label=label)
