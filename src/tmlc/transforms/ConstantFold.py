@@ -1,7 +1,8 @@
 import numpy as np
 import tmlc
-from tmlc.tsql import Pattern, Const, Op, match_pattern
-from tmlc.tensor import CommutativeOp, ConstantTensor, Negate, TensorOp
+from typing import cast
+from tmlc.tsql import Pattern, Op, match_pattern
+from tmlc.tensor import TensorOp, Constant
 from tmlc.graph import Graph, GraphTransform
 from typing_extensions import override
 
@@ -15,7 +16,7 @@ class ConstantFold(GraphTransform):
         fold_pattern: Pattern = Op(
             TensorOp,
             where=(
-                lambda x: all(isinstance(inp, ConstantTensor) for inp in x.inputs)
+                lambda x: all(isinstance(inp.op, Constant) for inp in x.inputs)
                 and len(x.inputs) > 0
             ),
             label="ConstantFold",
@@ -27,7 +28,11 @@ class ConstantFold(GraphTransform):
             for match in matches:
                 op_node = match.anchor  # root node
                 # result of the operation on the constant values
-                result_value = op_node.op.compute([inp.value for inp in op_node.inputs])
+                # note: this cast is a noop at runtime, and is safe
+                # because of the filter expr in the match pattern
+                result_value = op_node.op.compute(
+                    [cast(Constant, inp.op).value for inp in op_node.inputs]
+                )
                 # create a new constant node with the computed value
                 new_const_node = tmlc.constant(result_value, label=f"folded_{op_node.label}")
                 # replace the op node in the graph with the new constant node

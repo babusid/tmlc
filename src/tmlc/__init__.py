@@ -6,7 +6,6 @@ beartype_this_package()  # must precede submodule imports below to hook them
 
 from .ndarray import ndarray
 from .tensor import (
-    ConstantTensor,
     Tensor,
     TensorOp,
     Constant,
@@ -53,7 +52,6 @@ from .tsql import Pattern, Match, Env
 __all__ = [
     "ndarray",
     "Tensor",
-    "ConstantTensor",
     "TensorOp",
     "Graph",
     "differentiate",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing_extensions import override
 import numpy as np
 from tmlc.ndarray import ndarray
-from tmlc.tensor.tensor import ConstantTensor, Tensor, TensorOp
+from tmlc.tensor.tensor import Tensor, TensorOp
 
 
 class Constant(TensorOp):
@@ -21,8 +21,9 @@ class Constant(TensorOp):
         label: str | None = None,
     ) -> Tensor:
         assert inputs is None or len(inputs) == 0, "Constant op cannot accept any input tensors"
-        return ConstantTensor(
-            value=self.value,
+        return Tensor(
+            inputs=tuple(),
+            shape=self.infer_shape(tuple()),
             op=self,
             label=f"{label}={self.value}" if label else f"const={self.value}",
         )

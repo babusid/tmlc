@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .tensor import ConstantTensor, Tensor, TensorOp
+from .tensor import Tensor, TensorOp
 from . import _operators  # noqa: F401  (attaches Tensor's operator dunders, see tensor.py)
 from .ops.ops_basic import Constant, Input, constant, zeros, ones, input
 from .ops.ops_arithmetic import Add, Div, Matmul, Mul, Negate, Pow, add, div, mm, mul, negate, power
@@ -24,7 +24,6 @@ from .ops.ops_shape import (
 from .traits import CommutativeOp
 
 __all__ = [
-    "ConstantTensor",
     "Tensor",
     "TensorOp",
     "Constant",

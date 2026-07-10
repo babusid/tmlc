@@ -79,22 +79,6 @@ class Tensor:
         def T(self) -> Tensor: ...
 
 
-class ConstantTensor(Tensor):
-    """
-    Constant is a special type of Tensor that holds a buffer that is managed outside of the graph.
-    It is operationally equivalent to an Input node, except that its value is determined at creation
-    time, rather than supplied at evaluation time.
-    It is a leaf node in the graph and does not have any input tensors.
-    The value of a Constant tensor is stored in the `constval` field.
-    """
-
-    value: ndarray
-
-    def __init__(self, value: ndarray, op: TensorOp, label: str | None = None):
-        super().__init__(inputs=tuple(), op=op, label=label, shape=value.shape)
-        self.value = value
-
-
 class TensorOp(ABC):
     """TensorOp interface represents an operation that can be performed on Tensors."""
 
