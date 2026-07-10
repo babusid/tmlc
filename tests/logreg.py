@@ -41,7 +41,7 @@ def build_graph():
     loss = tmlc.summation(log_partition - correct_logit, axes=(0,)) / BATCH_SIZE
 
     loss_graph = tmlc.Graph([loss])
-    grad_graph = tmlc.differentiate(graph=loss_graph, output_node=loss, target_nodes=[W, b])
+    grad_graph, _ = tmlc.differentiate(graph=loss_graph, output_node=loss, target_nodes=[W, b])
     train_graph = tmlc.Graph([loss, *grad_graph.outputs])
     eval_graph = tmlc.Graph([logits])
     return x, W, b, y_one_hot, train_graph, eval_graph

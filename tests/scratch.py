@@ -23,7 +23,7 @@ output = forward_graph.run(
 print(output)
 
 diff_graph = tmlc.Graph([out])
-grad_graph = tmlc.differentiate(graph=diff_graph, output_node=out, target_nodes=[a, b, c])
+grad_graph, _ = tmlc.differentiate(graph=diff_graph, output_node=out, target_nodes=[a, b, c])
 
 output = grad_graph.run(
     inputs={
