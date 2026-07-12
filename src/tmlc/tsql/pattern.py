@@ -49,8 +49,8 @@ class Pattern:
     def __repr__(self) -> str:
         return str(self)
 
-    def match(self, node: Tensor) -> Match | None:
-        env = next(self._match(node, {}), None)
+    def match(self, node: Tensor, initial_env: Env | None = None) -> Match | None:
+        env = next(self._match(node, initial_env or {}), None)
         return None if env is None else Match(node, env)
 
     def _match_inputs(

@@ -10,7 +10,7 @@ from tmlc import Tensor, Constant, Input
 from .pattern import Env, Pattern
 
 
-def structurally_equal(a: Tensor, b: Tensor) -> bool:
+def _structurally_equal(a: Tensor, b: Tensor) -> bool:
     """Recursive structural equality on the subgraph rooted at a and b."""
     if a is b:
         return True
@@ -25,7 +25,7 @@ def structurally_equal(a: Tensor, b: Tensor) -> bool:
         return False
     if len(a.inputs) != len(b.inputs):
         return False
-    return all(structurally_equal(x, y) for x, y in zip(a.inputs, b.inputs))
+    return all(_structurally_equal(x, y) for x, y in zip(a.inputs, b.inputs))
 
 
 class EqualTo(Pattern):
@@ -40,5 +40,5 @@ class EqualTo(Pattern):
 
     @override
     def _match(self, node: Tensor, env: Env) -> Iterator[Env]:
-        if self.label in env and structurally_equal(node, env[self.label]):
+        if self.label in env and _structurally_equal(node, env[self.label]):
             yield env
