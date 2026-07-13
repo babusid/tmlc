@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
-from numpy import ndarray
+from tmlc.ndarray import ndarray
 from typing_extensions import override
 
 from tmlc.tensor.tensor import Tensor, TensorOp
