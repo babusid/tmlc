@@ -35,11 +35,11 @@ class Pattern:
         label: str | None = None,
         where: Callable[[Tensor], bool] | None = None,
     ) -> None:
-        self.spec = spec
+        self.spec: type = spec
         self.label: str = label or ""
         self._has_label: bool = label is not None
         self.input_patterns: list[Pattern] = inputs or []
-        self.where = where
+        self.where: Callable[[Tensor], bool] | None = where
 
     @override
     def __str__(self) -> str:
