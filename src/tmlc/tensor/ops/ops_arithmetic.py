@@ -158,9 +158,9 @@ class Matmul(TensorOp):
     @override
     def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 2, "Matmul op requires exactly 2 input tensors"
-        assert (
-            len(inputs[0].shape) == 2 and len(inputs[1].shape) == 2
-        ), "Matmul op requires 2D input tensors"
+        assert len(inputs[0].shape) == 2 and len(inputs[1].shape) == 2, (
+            "Matmul op requires 2D input tensors"
+        )
         assert inputs[0].shape[1] == inputs[1].shape[0], "Matmul input shapes are incompatible"
         return (inputs[0].shape[0], inputs[1].shape[1])
 
@@ -229,17 +229,17 @@ class Pow(TensorOp):
     @override
     def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 2, "Power op requires exactly 2 input tensors"
-        assert (
-            inputs[0].shape == inputs[1].shape
-        ), "Power op requires tensors to have the same shape"
+        assert inputs[0].shape == inputs[1].shape, (
+            "Power op requires tensors to have the same shape"
+        )
         return inputs[0].shape
 
     @override
     def compute(self, inputs: list[ndarray]) -> ndarray:
         assert len(inputs) == 2, "Power op requires exactly 2 input tensors"
-        assert (
-            inputs[0].shape == inputs[1].shape
-        ), "Power op requires tensors to have the same shape"
+        assert inputs[0].shape == inputs[1].shape, (
+            "Power op requires tensors to have the same shape"
+        )
         return np.asarray(inputs[0] ** inputs[1])
 
     @override

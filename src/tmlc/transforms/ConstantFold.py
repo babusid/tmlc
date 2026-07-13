@@ -11,8 +11,9 @@ class ConstantFold(GraphTransform):
     def __call__(self, graph: Graph) -> Graph:
         fold_pattern: Pattern = Pattern(
             TensorOp,
-            where=lambda x: len(x.inputs) > 0
-            and all(isinstance(inp.op, Constant) for inp in x.inputs),
+            where=lambda x: (
+                len(x.inputs) > 0 and all(isinstance(inp.op, Constant) for inp in x.inputs)
+            ),
             label="ConstantFold",
         )
         matches = list(match_pattern(graph, fold_pattern))

@@ -65,5 +65,5 @@ for name, r in results.items():
     print(f"{name:<{name_w}} {r['nodes']:>6}  {r['time_us']:>8.2f}  {speedup:>7.2f}x")
 print()
 for name, r in results.items():
-    labels = [l.split("=")[0] + ("=…" if "=" in l else "") for l in r["labels"]]
+    labels = [label.split("=")[0] + ("=…" if "=" in label else "") for label in r["labels"]]
     print(f"{name}: {labels}")

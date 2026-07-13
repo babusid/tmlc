@@ -71,9 +71,9 @@ def main():
     loss_plus, _, _ = forward_backward(W_plus, b_val)
     loss_minus, _, _ = forward_backward(W_minus, b_val)
     numerical_grad = (loss_plus - loss_minus) / (2 * eps)
-    assert np.isclose(
-        base_grad_W[i, j], numerical_grad, rtol=1e-3, atol=1e-3
-    ), f"autodiff grad {base_grad_W[i, j]} != numerical grad {numerical_grad}"
+    assert np.isclose(base_grad_W[i, j], numerical_grad, rtol=1e-3, atol=1e-3), (
+        f"autodiff grad {base_grad_W[i, j]} != numerical grad {numerical_grad}"
+    )
 
     initial_loss = float(base_loss)
     lr = 0.5

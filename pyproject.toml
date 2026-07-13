@@ -44,3 +44,8 @@ recursive = true
 in-place = true
 wrap-summaries = 100
 wrap-descriptions = 100
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.6.0",
+]

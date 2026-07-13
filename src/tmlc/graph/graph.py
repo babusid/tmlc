@@ -137,8 +137,8 @@ def differentiate(
 ) -> tuple[Graph, list[Tensor]]:
     """
     Compute the gradients of the output_node with respect to the target_nodes in the graph.
-    Returns a new Graph containing the gradient nodes, and a list of the gradient nodes corresponding
-    to the target_nodes.
+    Returns a new Graph containing the gradient nodes, and a list of the gradient nodes
+    corresponding to the target_nodes.
     """
     rev_topo_sort: list[Tensor] = []
     rev_topo_sort = [t for t in graph.topo_sort]
