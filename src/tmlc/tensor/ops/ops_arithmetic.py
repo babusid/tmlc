@@ -6,6 +6,7 @@ from typing_extensions import override
 from tmlc.tensor.tensor import Tensor, TensorOp
 from tmlc.tensor.ops.ops_shape import broadcast_to
 from tmlc.tensor.ops.ops_logarithmic import log
+from tmlc.tensor.traits import commutative
 
 
 def _broadcast_shape(shape1: tuple[int, ...], shape2: tuple[int, ...]) -> tuple[int, ...]:
@@ -29,9 +30,8 @@ def _broadcast_pair(t1: Tensor, t2: Tensor) -> tuple[Tensor, Tensor]:
     return t1, t2
 
 
+@commutative
 class Add(TensorOp):
-    commutative = True
-
     @override
     def __call__(
         self,
@@ -66,9 +66,8 @@ class Add(TensorOp):
         return ""
 
 
+@commutative
 class Mul(TensorOp):
-    commutative = True
-
     @override
     def __call__(
         self,

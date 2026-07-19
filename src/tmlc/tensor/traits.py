@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from abc import ABC
+from typing import TypeVar
 
 from .tensor import TensorOp
 
-
-@runtime_checkable
-class CommutativeOp(Protocol):
-    """Marker protocol: this op's inputs may be matched in any order."""
-
-    commutative: bool
+_TensorOp = TypeVar("_TensorOp", bound=TensorOp)
 
 
-def is_commutative(op: TensorOp) -> bool:
-    """Guard against runtime_checkable's attribute-presence-only isinstance check."""
-    return isinstance(op, CommutativeOp) and op.commutative
+class Commutative(ABC):
+    """Runtime marker for operations whose inputs may be reordered."""
+
+
+def commutative(op: type[_TensorOp]) -> type[_TensorOp]:
+    """Mark a TensorOp class as commutative without replacing it."""
+    if not issubclass(op, TensorOp):
+        raise TypeError("@commutative can only decorate TensorOp subclasses")
+    Commutative.register(op)
+    return op

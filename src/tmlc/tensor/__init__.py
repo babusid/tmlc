@@ -21,7 +21,7 @@ from .ops.ops_shape import (
     zeros_like,
 )
 
-from .traits import CommutativeOp
+from .traits import Commutative, commutative
 
 __all__ = [
     "Tensor",
@@ -63,5 +63,6 @@ __all__ = [
     "summation",
     "transpose",
     "zeros_like",
-    "CommutativeOp",
+    "Commutative",
+    "commutative",
 ]

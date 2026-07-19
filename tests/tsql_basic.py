@@ -3,6 +3,7 @@ import tmlc
 from tmlc.tsql import Var, Const, Pattern, Ref, EqualTo, match_pattern
 from tmlc.tensor.ops.ops_arithmetic import Add, Mul
 from tmlc.tensor.ops.ops_arithmetic import Matmul
+from tmlc.tensor.traits import Commutative, commutative
 
 x = tmlc.input(shape=(2,), label="x")
 a = tmlc.constant(np.ones((2,)), label="a")
@@ -72,6 +73,10 @@ comm_matches = list(match_pattern(comm_graph, comm_pattern))
 # but the commutative permutation should still find it
 assert len(comm_matches) == 1
 assert isinstance(comm_matches[0].env["c"].op, tmlc.Constant)
+assert isinstance(Add(), Commutative)
+assert isinstance(Mul(), Commutative)
+assert not isinstance(Matmul(), Commutative)
+assert commutative(Add) is Add
 
 # Matmul is NOT commutative — wrong operand order should not match
 mm_result = tmlc.mm(tmlc.reshape(x, (1, 2)), tmlc.reshape(x, (2, 1)))

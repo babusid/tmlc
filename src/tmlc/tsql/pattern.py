@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from itertools import permutations
 from typing import Callable, TypeAlias, override
 from tmlc import Tensor, Constant
-from tmlc.tensor.traits import is_commutative
+from tmlc.tensor.traits import Commutative
 
 Env: TypeAlias = dict[str, Tensor]
 
@@ -78,7 +78,7 @@ class Pattern:
             return
         if len(node.inputs) != len(self.input_patterns):
             return
-        orderings = permutations(node.inputs) if is_commutative(node.op) else [node.inputs]
+        orderings = permutations(node.inputs) if isinstance(node.op, Commutative) else [node.inputs]
         for ordering in orderings:
             yield from self._match_inputs(self.input_patterns, list(ordering), env_out)
 
