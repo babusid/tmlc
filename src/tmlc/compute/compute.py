@@ -126,11 +126,11 @@ class ComputeProgramBuilder:
     _tensors: list[ComputeTensor] = field(default_factory=list)
     _inputs: list[ComputeTensor] = field(default_factory=list)
     _constants: list[tuple[ComputeTensor, DenseConst]] = field(default_factory=list)
-    _counter: int = 0
+    _counters: dict[str, int] = field(default_factory=dict)
 
     def _fresh(self, hint: str) -> str:
-        self._counter += 1
-        return f"{hint}_{self._counter}"
+        self._counters[hint] = self._counters.get(hint, 0) + 1
+        return f"{hint}_{self._counters[hint]}"
 
     def spatial(self, extent: int, name: str = "spatial") -> Axis:
         return Axis(AxisKind.SPATIAL, extent, self._fresh(name))
