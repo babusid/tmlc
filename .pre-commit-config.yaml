@@ -2,5 +2,8 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.17
     hooks:
+      # Lint + auto-fix (includes the D209/D213 docstring-quote style).
+      - id: ruff
+        args: [--fix]
       - id: ruff-format
         args: [--check]

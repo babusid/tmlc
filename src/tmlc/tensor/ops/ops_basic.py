@@ -4,6 +4,16 @@ from typing_extensions import override
 import numpy as np
 from tmlc.ndarray import ndarray
 from tmlc.tensor.tensor import Tensor, TensorOp
+from tmlc.compute.compute import ComputeProgramBuilder, ComputeTensor, DenseConst
+
+# The native structure of `ndarray.tolist()`: a scalar, or nested lists of them.
+type _NestedScalars = float | int | list[_NestedScalars]
+
+
+def _dense_const(value: _NestedScalars) -> DenseConst:
+    if isinstance(value, list):
+        return tuple(_dense_const(item) for item in value)
+    return float(value)
 
 
 class Constant(TensorOp):
@@ -43,13 +53,20 @@ class Constant(TensorOp):
         return []  # Constant nodes do not have gradients
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        # TODO: Figure out what to do here not sure what emitting ir for a leaf node looks like
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 0, "Constant lowering cannot accept input tensors"
+        return (
+            builder.declare_constant(
+                self.value.shape, "float32", _dense_const(self.value.tolist()), hint="const"
+            ),
+        )
 
 
 class Input(TensorOp):
-    """Input denotes an input to the computational graph.
+    """
+    Input denotes an input to the computational graph.
 
     It cannot accept any Tensors, run compute or gradients, and is just a leaf node placeholder.
     """
@@ -90,13 +107,16 @@ class Input(TensorOp):
         return []  # Input nodes do not have gradients
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        # TODO: Figure out what to do here not sure what emitting ir for a leaf node looks like
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 0, "Input lowering cannot accept input tensors"
+        return (builder.declare_input(self.shape, "float32", hint="input"),)
 
 
 def constant(value: float | int | ndarray, label: str | None = None) -> Tensor:
-    """Create a constant Tensor with the given value and an optional label.
+    """
+    Create a constant Tensor with the given value and an optional label.
     This is used to denote constant values in the computational graph that are not supplied at
     evaluation time, but rather determined at graph construction time.
     """
@@ -114,7 +134,8 @@ def ones(shape: tuple[int, ...], label: str | None = None) -> Tensor:
 
 
 def input(shape: tuple[int, ...], label: str | None = None) -> Tensor:
-    """Create an input Tensor with an optional label.
+    """
+    Create an input Tensor with an optional label.
     This is used to denote the inputs to the computational graph.
     All input nodes must be assigned a
     value at evaluation time.

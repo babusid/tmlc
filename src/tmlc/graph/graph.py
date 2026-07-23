@@ -8,6 +8,7 @@ from tmlc.tensor.ops.ops_basic import Input
 from tmlc.tensor.ops.ops_shape import ones_like, zeros_like
 from tmlc.util.topo_sort import dfs_helper_topo_sort
 from tmlc.ndarray import ndarray
+from tmlc.compute.compute import ComputeProgram, ComputeProgramBuilder, ComputeTensor
 from abc import ABC, abstractmethod
 
 
@@ -108,8 +109,10 @@ class Graph:
         return output
 
     def replace(self, replacements: dict[Tensor, Tensor]) -> Graph:
-        """Return a new graph with old nodes swapped for their replacements.
-        Downstream nodes are rebuilt with updated inputs; everything else is reused as-is."""
+        """
+        Return a new graph with old nodes swapped for their replacements.
+        Downstream nodes are rebuilt with updated inputs; everything else is reused as-is.
+        """
         memo: dict[Tensor, Tensor] = dict(replacements)  # copy
 
         def rebuild(node: Tensor) -> Tensor:
@@ -130,6 +133,18 @@ class Graph:
 
     def run_compiled(self) -> None:
         return
+
+    def lower(self) -> ComputeProgram:
+        """Lower the graph into a ComputeProgram."""
+        return lower(self)
+
+    def differentiate(
+        self, output_node: Tensor, target_nodes: list[Tensor]
+    ) -> tuple[Graph, list[Tensor]]:
+        """
+        Compute the gradients of the output_node with respect to the target_nodes in the graph.
+        """
+        return differentiate(self, output_node, target_nodes)
 
 
 def differentiate(
@@ -177,3 +192,21 @@ def differentiate(
 
     bwd_outputs = [node_grad.get(target, zeros_like(target)) for target in target_nodes]
     return (Graph(bwd_outputs), bwd_outputs)
+
+
+def lower(graph: Graph) -> ComputeProgram:
+    """
+    Lower a Graph into a ComputeProgram by walking its topological sort.
+
+    `env` maps each graph Tensor to the ComputeTensor(s) it lowered to. Every node lowers uniformly
+    via `op.lower`, which appends its block(s) to the builder and returns its output tensor(s); leaf
+    ops (Input, Constant, Fill) take no operands. A node's operands are its inputs' outputs
+    flattened, which stays correct if an input is ever a multi-output op.
+    """
+    builder = ComputeProgramBuilder()
+    env: dict[Tensor, tuple[ComputeTensor, ...]] = {}
+    for node in graph.topo_sort:
+        operands = tuple(ct for inp in node.inputs for ct in env[inp])
+        env[node] = node.op.lower(builder, operands)
+    outputs = tuple(ct for out in graph.outputs for ct in env[out])
+    return builder.finish(outputs=outputs)

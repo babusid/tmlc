@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 from tmlc.ndarray import ndarray
+from tmlc.compute.compute import ComputeProgramBuilder, ComputeTensor
 from typing_extensions import override
 
 
@@ -13,7 +14,8 @@ from typing_extensions import override
 # tmlc/_operators.py, which is imported once from tmlc/__init__.py. The signatures below
 # (TYPE_CHECKING-only) exist purely so static analysis and editors know the dunders exist.
 class Tensor:
-    """A Tensor is a node in a computational graph, representing a multi-dimensional array.
+    """
+    A Tensor is a node in a computational graph, representing a multi-dimensional array.
     Tensors are the inputs to tensor operations, which output new tensors. A sequence of Tensor
     Operations chained together produces a computational graph, which we can compile and optimize.
     Tensors do NOT actually hold data themseleves, but rather represent the flow of data through
@@ -92,8 +94,10 @@ class TensorOp(ABC):
         inputs: tuple[Tensor, ...],
         label: str | None = None,
     ) -> Tensor:
-        """When a TensorOp is called, it should create a new Tensor that represents the output of
-        this operation."""
+        """
+        When a TensorOp is called, it should create a new Tensor that represents the output of
+        this operation.
+        """
         raise NotImplementedError("TensorOp subclasses must implement __call__")
 
     @abstractmethod
@@ -106,7 +110,8 @@ class TensorOp(ABC):
 
     @abstractmethod
     def compute(self, inputs: list[ndarray]) -> ndarray:
-        """Given the input arrays, compute the output arrays of this operation.
+        """
+        Given the input arrays, compute the output arrays of this operation.
 
         This is used by the evaluator to compute the values of the output tensors in the graph. This
         operates on concrete arrays to actually determine a concrete value, and is used for eager
@@ -116,7 +121,8 @@ class TensorOp(ABC):
 
     @abstractmethod
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
-        """Given the output of the forward `call` method and the incoming gradient from the
+        """
+        Given the output of the forward `call` method and the incoming gradient from the
         backwards pass, this method calculates the gradients to propagate to the inputs.
 
         The calculated gradients must be arranged in a list that corresponds to the original
@@ -125,11 +131,14 @@ class TensorOp(ABC):
         raise NotImplementedError("TensorOp subclasses must implement gradients()")
 
     @abstractmethod
-    def emit_ir(self, inputs: list[str]) -> str:
-        # TODO: may need to update function signature here. Do we need input tensor labels?
-        """If compiling the graph, each TensorOp needs to emit IR that represents this operations
-        computation.
-
-        The compiler composes the graphs full IR to optimize and generate the final code.
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
         """
-        raise NotImplementedError("TensorOp subclasses must implement emit_ir()")
+        Lower this op into the Compute IR by appending its block(s) to `builder`, returning the
+        output ComputeTensor(s) that downstream ops read as their inputs.
+
+        `inputs` are the ComputeTensors this op's graph inputs lowered to. The return is a tuple so
+        multi-output ops are expressible later; single-output ops return a 1-tuple.
+        """
+        raise NotImplementedError("TensorOp subclasses must implement lower()")
