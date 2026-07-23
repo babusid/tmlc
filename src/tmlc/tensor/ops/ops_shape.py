@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
+from math import prod
 from tmlc.ndarray import ndarray
 from typing_extensions import override
 
 from tmlc.tensor.tensor import Tensor, TensorOp
+from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute.index import AxisRef, IndexExpr, IntConst
+from tmlc.compute.scalar import ScalarConst
 
 
 def normalize_axes(
@@ -82,8 +86,16 @@ class Transpose(TensorOp):
         return [transpose(incoming_grad, axes=self.axes)]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 1, "Transpose lowering requires exactly 1 input tensor"
+        source = inputs[0]
+        permutation = self._permutation(source.shape)
+        output_shape = tuple(source.shape[dim] for dim in permutation)
+        domain = tuple(builder.spatial(extent, "transpose") for extent in output_shape)
+        input_index = tuple(AxisRef(domain[permutation.index(dim)]) for dim in range(len(domain)))
+        return (builder.compute(domain, source[input_index], dtype=source.dtype, hint="transpose"),)
 
 
 class Summation(TensorOp):
@@ -132,12 +144,34 @@ class Summation(TensorOp):
         return [broadcast_to(reshaped_grad, shape=input_shape)]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 1, "Summation lowering requires exactly 1 input tensor"
+        source = inputs[0]
+        normalized = normalize_axes(self.axes, source.shape)
+        reduced_axes = set(range(len(source.shape))) if normalized is None else set(normalized)
+        domain = tuple(
+            builder.reduce(extent, "sum_reduce")
+            if dim in reduced_axes
+            else builder.spatial(extent, "sum_spatial")
+            for dim, extent in enumerate(source.shape)
+        )
+        index = tuple(AxisRef(axis) for axis in domain)
+        return (
+            builder.compute(
+                domain,
+                source[index],
+                combiner=Combiner.SUM if reduced_axes else None,
+                dtype=source.dtype,
+                hint="sum",
+            ),
+        )
 
 
 class Fill(TensorOp):
-    """Nullary op producing a constant array of `shape`/`dtype` filled with `value`.
+    """
+    Nullary op producing a constant array of `shape`/`dtype` filled with `value`.
 
     Unlike `Constant`, the array is not baked in at trace time: it carries no input edges and
     is materialized lazily in `compute()`. This keeps `zeros_like`/`ones_like` cheap to trace
@@ -184,8 +218,14 @@ class Fill(TensorOp):
         return []  # Fill nodes are nullary: nothing to propagate to
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 0, "Fill lowering cannot accept input tensors"
+        domain = tuple(builder.spatial(extent, "fill") for extent in self.shape)
+        return (
+            builder.compute(domain, ScalarConst(float(self.value)), dtype=self.dtype, hint="fill"),
+        )
 
 
 class Reshape(TensorOp):
@@ -224,8 +264,34 @@ class Reshape(TensorOp):
         return [reshape(incoming_grad, shape=tensor.inputs[0].shape)]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 1, "Reshape lowering requires exactly 1 input tensor"
+        source = inputs[0]
+        assert prod(source.shape) == prod(self.shape), "Reshape lowering cannot change tensor size"
+        domain = tuple(builder.spatial(extent, "reshape") for extent in self.shape)
+
+        linear: IndexExpr = IntConst(0)
+        for dim, axis in enumerate(domain):
+            stride = prod(self.shape[dim + 1 :])
+            term: IndexExpr = AxisRef(axis)
+            if stride != 1:
+                term = term * stride
+            linear = linear + term
+
+        input_index: list[IndexExpr] = []
+        for dim, extent in enumerate(source.shape):
+            if extent == 1:
+                input_index.append(IntConst(0))
+                continue
+            stride = prod(source.shape[dim + 1 :])
+            coordinate = linear if stride == 1 else linear // stride
+            input_index.append(coordinate % extent)
+
+        return (
+            builder.compute(domain, source[tuple(input_index)], dtype=source.dtype, hint="reshape"),
+        )
 
 
 class BroadcastTo(TensorOp):
@@ -268,8 +334,19 @@ class BroadcastTo(TensorOp):
         return [reshape(grad, shape=input_shape)]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 1, "BroadcastTo lowering requires exactly 1 input tensor"
+        source = inputs[0]
+        _assert_broadcastable(source.shape, self.shape)
+        domain = tuple(builder.spatial(extent, "broadcast") for extent in self.shape)
+        offset = len(self.shape) - len(source.shape)
+        input_index = tuple(
+            IntConst(0) if extent == 1 else AxisRef(domain[offset + dim])
+            for dim, extent in enumerate(source.shape)
+        )
+        return (builder.compute(domain, source[input_index], dtype=source.dtype, hint="broadcast"),)
 
 
 def transpose(

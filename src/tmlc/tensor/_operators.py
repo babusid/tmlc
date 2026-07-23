@@ -1,4 +1,5 @@
-"""Attaches Tensor's operator dunders to their backing ops.
+"""
+Attaches Tensor's operator dunders to their backing ops.
 
 See the comment above the `Tensor` class definition in tensor.py for why this lives in its own
 module: it breaks the circular dependency between tensor.py and the ops modules. This module

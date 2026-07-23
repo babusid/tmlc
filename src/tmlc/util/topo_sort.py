@@ -4,7 +4,8 @@ from tmlc.tensor.tensor import Tensor
 
 
 def dfs_helper_topo_sort(node: Tensor, visited: set[Tensor], topo_sort: list[Tensor]) -> None:
-    """Helper function for topological sort using post-order DFS traversal.
+    """
+    Helper function for topological sort using post-order DFS traversal.
 
     This ensures all nodes are processed after their children (dependencies).
 

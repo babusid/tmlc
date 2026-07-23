@@ -4,6 +4,8 @@ import numpy as np
 from tmlc.ndarray import ndarray
 from typing_extensions import override
 from tmlc.tensor.tensor import Tensor, TensorOp
+from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute.index import AxisRef
 from tmlc.tensor.ops.ops_shape import broadcast_to
 from tmlc.tensor.ops.ops_logarithmic import log
 from tmlc.tensor.traits import commutative
@@ -62,8 +64,16 @@ class Add(TensorOp):
         return [incoming_grad, incoming_grad]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 2, "Add lowering requires exactly 2 input tensors"
+        lhs, rhs = inputs
+        assert lhs.shape == rhs.shape, "Add lowering requires equal input shapes"
+        domain = tuple(builder.spatial(extent, "add") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in domain)
+        body = lhs[index] + rhs[index]
+        return (builder.compute(domain, body, dtype=lhs.dtype, hint="add"),)
 
 
 @commutative
@@ -98,8 +108,16 @@ class Mul(TensorOp):
         return [tensor.inputs[1] * incoming_grad, tensor.inputs[0] * incoming_grad]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 2, "Mul lowering requires exactly 2 input tensors"
+        lhs, rhs = inputs
+        assert lhs.shape == rhs.shape, "Mul lowering requires equal input shapes"
+        domain = tuple(builder.spatial(extent, "mul") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in domain)
+        body = lhs[index] * rhs[index]
+        return (builder.compute(domain, body, dtype=lhs.dtype, hint="mul"),)
 
 
 class Div(TensorOp):
@@ -136,8 +154,16 @@ class Div(TensorOp):
         ]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 2, "Div lowering requires exactly 2 input tensors"
+        lhs, rhs = inputs
+        assert lhs.shape == rhs.shape, "Div lowering requires equal input shapes"
+        domain = tuple(builder.spatial(extent, "div") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in domain)
+        body = lhs[index] / rhs[index]
+        return (builder.compute(domain, body, dtype=lhs.dtype, hint="div"),)
 
 
 class Matmul(TensorOp):
@@ -174,8 +200,22 @@ class Matmul(TensorOp):
         return [incoming_grad @ tensor.inputs[1].T, tensor.inputs[0].T @ incoming_grad]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 2, "Matmul lowering requires exactly 2 input tensors"
+        lhs, rhs = inputs
+        assert len(lhs.shape) == 2 and len(rhs.shape) == 2, (
+            "Matmul lowering requires 2D input tensors"
+        )
+        assert lhs.shape[1] == rhs.shape[0], "Matmul lowering input shapes are incompatible"
+        i = builder.spatial(lhs.shape[0], "matmul_i")
+        j = builder.spatial(rhs.shape[1], "matmul_j")
+        k = builder.reduce(lhs.shape[1], "matmul_k")
+        body = lhs[AxisRef(i), AxisRef(k)] * rhs[AxisRef(k), AxisRef(j)]
+        return (
+            builder.compute((i, j, k), body, combiner=Combiner.SUM, dtype=lhs.dtype, hint="matmul"),
+        )
 
 
 class Negate(TensorOp):
@@ -207,8 +247,14 @@ class Negate(TensorOp):
         return [negate(incoming_grad)]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 1, "Negate lowering requires exactly 1 input tensor"
+        (source,) = inputs
+        domain = tuple(builder.spatial(extent, "negate") for extent in source.shape)
+        index = tuple(AxisRef(axis) for axis in domain)
+        return (builder.compute(domain, -source[index], dtype=source.dtype, hint="negate"),)
 
 
 class Pow(TensorOp):
@@ -250,8 +296,16 @@ class Pow(TensorOp):
         ]
 
     @override
-    def emit_ir(self, inputs: list[str]) -> str:
-        return ""
+    def lower(
+        self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
+    ) -> tuple[ComputeTensor, ...]:
+        assert len(inputs) == 2, "Pow lowering requires exactly 2 input tensors"
+        lhs, rhs = inputs
+        assert lhs.shape == rhs.shape, "Pow lowering requires equal input shapes"
+        domain = tuple(builder.spatial(extent, "pow") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in domain)
+        body = lhs[index] ** rhs[index]
+        return (builder.compute(domain, body, dtype=lhs.dtype, hint="pow"),)
 
 
 def add(t1: Tensor, t2: Tensor, label: str | None = None) -> Tensor:
