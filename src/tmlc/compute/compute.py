@@ -165,6 +165,10 @@ class ComputeProgramBuilder:
         shape = tuple(a.extent for a in domain if a.kind is AxisKind.SPATIAL)
         out = ComputeTensor(self._fresh(hint), shape, dtype)
         block = ComputeBlock(output=out, domain=domain, body=body, combiner=combiner)
+        # local import: verify depends on compute's types, so a top-level import would cycle
+        from tmlc.compute.verify import verify_block
+
+        verify_block(block)
         self._blocks.append(block)
         self._tensors.append(out)
         return out
