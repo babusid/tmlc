@@ -1,7 +1,7 @@
 import tmlc
 from typing import cast
 from tmlc.tsql import Pattern, match_pattern
-from tmlc.tensor import TensorOp, Constant
+from tmlc.tensor import TensorOp, Constant, Input
 from tmlc.graph import Graph, GraphTransform
 from typing_extensions import override
 
@@ -12,7 +12,8 @@ class ConstantFold(GraphTransform):
         fold_pattern: Pattern = Pattern(
             TensorOp,
             where=lambda x: (
-                len(x.inputs) > 0 and all(isinstance(inp.op, Constant) for inp in x.inputs)
+                not isinstance(x.op, (Constant, Input))
+                and all(isinstance(inp.op, Constant) for inp in x.inputs)
             ),
             label="ConstantFold",
         )
@@ -21,7 +22,7 @@ class ConstantFold(GraphTransform):
         while matches:
             for match in matches:
                 op_node = match.anchor
-                result_value = op_node.op.compute(
+                result_value = op_node.op.fold(
                     [cast(Constant, inp.op).value for inp in op_node.inputs]
                 )
                 new_const_node = tmlc.constant(result_value, label=f"folded_{op_node.label}")

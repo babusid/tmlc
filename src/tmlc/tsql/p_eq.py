@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing_extensions import override
 
-import numpy as np
-
-from tmlc import Tensor, Constant, Input
+from tmlc import Tensor, Input
 
 from .pattern import Env, Pattern
 
@@ -18,10 +16,7 @@ def _structurally_equal(a: Tensor, b: Tensor) -> bool:
         return False
     if isinstance(a.op, Input):
         return False
-    if isinstance(a.op, Constant) and isinstance(b.op, Constant):
-        if not np.array_equal(a.op.value, b.op.value):
-            return False
-    elif vars(a.op) != vars(b.op):
+    if vars(a.op) != vars(b.op):
         return False
     if len(a.inputs) != len(b.inputs):
         return False

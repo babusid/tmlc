@@ -1,9 +1,11 @@
 import time
 import numpy as np
 import tmlc
+from tmlc.interpreters.graph_interpreter import GraphInterpreter
 from tmlc.transforms import CSE
 
 N = 1000
+interpreter = GraphInterpreter()
 
 x = tmlc.input(shape=(512,), label="x")
 
@@ -17,10 +19,10 @@ graph = tmlc.Graph([out])
 
 x_val = np.arange(512, dtype=float)
 
-out_val_pre = graph.run(inputs={x: x_val})  # warm up allocator and ufunc dispatch cache
+out_val_pre = interpreter.run(graph, inputs={x: x_val})  # warm up allocator and ufunc cache
 start = time.time()
 for _ in range(N):
-    _ = graph.run(inputs={x: x_val})
+    _ = interpreter.run(graph, inputs={x: x_val})
 pre_time = (time.time() - start) / N
 
 print(f"Graph value before opt (first 4): {out_val_pre[0][:4]}")
@@ -33,10 +35,10 @@ comp_start = time.time()
 graph = graph.apply_transforms([CSE()])
 comp_time = time.time() - comp_start
 
-out_val_post = graph.run(inputs={x: x_val})  # warm up after transform
+out_val_post = interpreter.run(graph, inputs={x: x_val})  # warm up after transform
 start = time.time()
 for _ in range(N):
-    _ = graph.run(inputs={x: x_val})
+    _ = interpreter.run(graph, inputs={x: x_val})
 post_time = (time.time() - start) / N
 
 print(f"Graph value after opt (first 4): {out_val_post[0][:4]}")

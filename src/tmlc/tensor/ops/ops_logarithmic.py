@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-import numpy as np
-from tmlc.ndarray import ndarray
+from collections.abc import Iterable
+from math import exp as scalar_exp
+from math import log as scalar_log
+from math import tanh as scalar_tanh
+
 from typing_extensions import override
+from tmlc.tensor.literal import (
+    LiteralScalar,
+    LiteralValue,
+)
 from tmlc.tensor.tensor import Tensor, TensorOp
 from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef
@@ -29,9 +36,9 @@ class Exp(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Exp op requires exactly 1 input tensor"
-        return np.asarray(np.exp(inputs[0]))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Exp op requires exactly 1 input"
+        return inputs[0].map(scalar_exp)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -68,9 +75,9 @@ class Log(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Log op requires exactly 1 input tensor"
-        return np.asarray(np.log(inputs[0]))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Log op requires exactly 1 input"
+        return inputs[0].map(scalar_log)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -107,9 +114,9 @@ class Tanh(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Tanh op requires exactly 1 input tensor"
-        return np.asarray(np.tanh(inputs[0]))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Tanh op requires exactly 1 input"
+        return inputs[0].map(scalar_tanh)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -156,12 +163,17 @@ class LogSumExp(TensorOp):
         return tuple(dim for axis, dim in enumerate(inputs[0].shape) if axis not in axes)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "LogSumExp op requires exactly 1 input tensor"
-        max_value = np.max(inputs[0], axis=self.axes, keepdims=True)
-        shifted = inputs[0] - max_value
-        sum_exp = np.sum(np.exp(shifted), axis=self.axes)
-        return np.asarray(np.log(sum_exp) + np.reshape(max_value, sum_exp.shape))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "LogSumExp op requires exactly 1 input"
+
+        def logsumexp(values: Iterable[LiteralScalar]) -> LiteralScalar:
+            concrete_values = tuple(values)
+            max_value = max(concrete_values)
+            shifted_sum = sum(scalar_exp(value - max_value) for value in concrete_values)
+            return scalar_log(shifted_sum) + max_value
+
+        axes = normalize_axes(self.axes, shape=inputs[0].shape)
+        return inputs[0].reduce(axes, logsumexp)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

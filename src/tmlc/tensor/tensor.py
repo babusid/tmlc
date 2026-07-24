@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
-from tmlc.ndarray import ndarray
 from tmlc.compute.compute import ComputeProgramBuilder, ComputeTensor
 from typing_extensions import override
+
+from tmlc.tensor.literal import LiteralValue
 
 
 # Tensor's operator dunders (__add__, __mul__, .T, etc.) are intentionally NOT implemented here.
@@ -109,15 +110,15 @@ class TensorOp(ABC):
         raise NotImplementedError("TensorOp subclasses must implement infer_shape()")
 
     @abstractmethod
-    def compute(self, inputs: list[ndarray]) -> ndarray:
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
         """
-        Given the input arrays, compute the output arrays of this operation.
+        Evaluate this operation over constant inputs during compile-time constant folding.
 
-        This is used by the evaluator to compute the values of the output tensors in the graph. This
-        operates on concrete arrays to actually determine a concrete value, and is used for eager
-        mode evaluation.
+        This method defines how constants propagate through the operation. It is part of the
+        TensorOp IR contract, not a runtime execution API: graph interpreters and compiled runtimes
+        provide their own operation implementations.
         """
-        raise NotImplementedError("TensorOp subclasses must implement compute()")
+        raise NotImplementedError("TensorOp subclasses must implement fold()")
 
     @abstractmethod
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

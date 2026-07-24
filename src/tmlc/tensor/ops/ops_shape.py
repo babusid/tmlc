@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import numpy as np
 from math import prod
-from tmlc.ndarray import ndarray
 from typing_extensions import override
 
+from tmlc.tensor.literal import LiteralValue
 from tmlc.tensor.tensor import Tensor, TensorOp
 from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef, IndexExpr, IntConst
@@ -77,9 +76,10 @@ class Transpose(TensorOp):
         return tuple(inputs[0].shape[axis] for axis in permutation)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Transpose op requires exactly 1 input tensor"
-        return np.transpose(inputs[0], axes=self._permutation(shape=inputs[0].shape))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Transpose op requires exactly 1 input"
+        permutation = self._permutation(shape=inputs[0].shape)
+        return inputs[0].transpose(permutation)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -128,9 +128,10 @@ class Summation(TensorOp):
         return tuple(dim for axis, dim in enumerate(inputs[0].shape) if axis not in axes)
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Summation op requires exactly 1 input tensor"
-        return np.asarray(np.sum(inputs[0], axis=self.axes))
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Summation op requires exactly 1 input"
+        axes = normalize_axes(self.axes, shape=inputs[0].shape)
+        return inputs[0].reduce(axes, sum)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -173,10 +174,8 @@ class Fill(TensorOp):
     """
     Nullary op producing a constant array of `shape`/`dtype` filled with `value`.
 
-    Unlike `Constant`, the array is not baked in at trace time: it carries no input edges and
-    is materialized lazily in `compute()`. This keeps `zeros_like`/`ones_like` cheap to trace
-    (no eager allocation, no spurious dependency on the tensor they mirror) and gives the
-    eventual MLIR lowering a splat constant to target instead of a literal buffer.
+    Unlike `Constant`, a dense value is not baked in at trace time. This gives lowerings a splat
+    constant to target instead of a literal buffer.
     """
 
     shape: tuple[int, ...]
@@ -209,9 +208,9 @@ class Fill(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert inputs is None or len(inputs) == 0, "Fill op cannot accept any input tensors"
-        return np.full(self.shape, self.value, dtype=self.dtype)
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert not inputs, "Fill op cannot accept any inputs"
+        return LiteralValue(self.value).broadcast_to(self.shape)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -250,14 +249,14 @@ class Reshape(TensorOp):
     @override
     def infer_shape(self, inputs: tuple[Tensor, ...]) -> tuple[int, ...]:
         assert len(inputs) == 1, "Reshape op requires exactly 1 input tensor"
-        assert np.prod(inputs[0].shape) == np.prod(self.shape), "Reshape cannot change tensor size"
+        assert prod(inputs[0].shape) == prod(self.shape), "Reshape cannot change tensor size"
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Reshape op requires exactly 1 input tensor"
-        assert np.prod(inputs[0].shape) == np.prod(self.shape), "Reshape cannot change tensor size"
-        return np.reshape(inputs[0], self.shape)
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Reshape op requires exactly 1 input"
+        assert prod(inputs[0].shape) == prod(self.shape)
+        return inputs[0].reshape(self.shape)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -320,10 +319,10 @@ class BroadcastTo(TensorOp):
         return self.shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "BroadcastTo op requires exactly 1 input tensor"
-        _assert_broadcastable(input_shape=inputs[0].shape, target_shape=self.shape)
-        return np.broadcast_to(inputs[0], self.shape)
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "BroadcastTo op requires exactly 1 input"
+        _assert_broadcastable(inputs[0].shape, self.shape)
+        return inputs[0].broadcast_to(self.shape)
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

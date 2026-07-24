@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import numpy as np
-from tmlc.ndarray import ndarray
 from typing_extensions import override
+from tmlc.tensor.literal import LiteralValue
 from tmlc.tensor.tensor import Tensor, TensorOp
 from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef
@@ -54,10 +53,9 @@ class Add(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 2, "Add op requires exactly 2 input tensors"
-        assert inputs[0].shape == inputs[1].shape, "Add op requires tensors to have the same shape"
-        return np.asarray(inputs[0] + inputs[1])
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 2, "Add op requires exactly 2 inputs"
+        return inputs[0] + inputs[1]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -98,10 +96,9 @@ class Mul(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 2, "Mul op requires exactly 2 input tensors"
-        assert inputs[0].shape == inputs[1].shape, "Mul op requires tensors to have the same shape"
-        return np.asarray(inputs[0] * inputs[1])
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 2, "Mul op requires exactly 2 inputs"
+        return inputs[0] * inputs[1]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -141,10 +138,9 @@ class Div(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 2, "Div op requires exactly 2 input tensors"
-        assert inputs[0].shape == inputs[1].shape, "Div op requires tensors to have the same shape"
-        return np.asarray(inputs[0] / inputs[1])
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 2, "Div op requires exactly 2 inputs"
+        return inputs[0] / inputs[1]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -190,9 +186,8 @@ class Matmul(TensorOp):
         return (inputs[0].shape[0], inputs[1].shape[1])
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 2, "Matmul op requires exactly 2 input tensors"
-        assert inputs[0].ndim == 2 and inputs[1].ndim == 2, "Matmul op requires 2D input tensors"
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 2, "Matmul op requires exactly 2 inputs"
         return inputs[0] @ inputs[1]
 
     @override
@@ -238,9 +233,9 @@ class Negate(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 1, "Negate op requires exactly 1 input tensor"
-        return np.asarray(-inputs[0])
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 1, "Negate op requires exactly 1 input"
+        return -inputs[0]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:
@@ -280,12 +275,9 @@ class Pow(TensorOp):
         return inputs[0].shape
 
     @override
-    def compute(self, inputs: list[ndarray]) -> ndarray:
-        assert len(inputs) == 2, "Power op requires exactly 2 input tensors"
-        assert inputs[0].shape == inputs[1].shape, (
-            "Power op requires tensors to have the same shape"
-        )
-        return np.asarray(inputs[0] ** inputs[1])
+    def fold(self, inputs: list[LiteralValue]) -> LiteralValue:
+        assert len(inputs) == 2, "Power op requires exactly 2 inputs"
+        return inputs[0] ** inputs[1]
 
     @override
     def gradients(self, tensor: Tensor, incoming_grad: Tensor) -> list[Tensor]:

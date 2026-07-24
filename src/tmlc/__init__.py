@@ -4,10 +4,11 @@ from beartype.claw import beartype_this_package
 
 beartype_this_package()  # must precede submodule imports below to hook them
 
-from .ndarray import ndarray  # noqa: E402
 from .tensor import (  # noqa: E402
     Tensor,
     TensorOp,
+    LiteralScalar,
+    LiteralValue,
     Constant,
     Input,
     constant,
@@ -50,9 +51,10 @@ from .graph.graph import Graph, differentiate  # noqa: E402
 from .tsql import Pattern, Match, Env  # noqa: E402
 
 __all__ = [
-    "ndarray",
     "Tensor",
     "TensorOp",
+    "LiteralScalar",
+    "LiteralValue",
     "Graph",
     "differentiate",
     "constant",

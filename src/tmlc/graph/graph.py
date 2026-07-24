@@ -3,12 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from functools import reduce
+from tmlc.compute.compute import ComputeProgram, ComputeProgramBuilder, ComputeTensor
 from tmlc.tensor.tensor import Tensor
 from tmlc.tensor.ops.ops_basic import Input
 from tmlc.tensor.ops.ops_shape import ones_like, zeros_like
 from tmlc.util.topo_sort import dfs_helper_topo_sort
-from tmlc.ndarray import ndarray
-from tmlc.compute.compute import ComputeProgram, ComputeProgramBuilder, ComputeTensor
 from abc import ABC, abstractmethod
 
 
@@ -31,9 +30,7 @@ class GraphTransform(ABC):
 class Graph:
     """
     Explicit graph object that traces a computation graph built from Tensor objects.
-    Must be built in order to actually run the computation graph, as well as to apply
-    graph optimizations for increased performance. Building a Graph is the first part
-    of the compilation process.
+    Graph optimizations operate on this representation before lowering and compilation.
 
     Immutable by design: `inputs`/`outputs`/`topo_sort` are read-only tuples. A GraphTransform
     must never mutate the graph it's given — it must build and return a new Graph instead.
@@ -85,28 +82,6 @@ class Graph:
     def apply_transforms(self, transform_fns: list[GraphTransform]) -> Graph:
         """Apply a transform pipeline to the graph"""
         return reduce(lambda graph, fn: fn(graph), transform_fns, self)
-
-    def run(self, inputs: dict[Tensor, ndarray]) -> list[ndarray]:
-        """Run the graph with the given inputs, returning the outputs as a list of ndarrays."""
-        outputs = self.outputs
-        topo_sort = self.topo_sort
-        intermediates: dict[Tensor, ndarray] = {}
-        for node in topo_sort:
-            if node in inputs:
-                intermediates[node] = inputs[node]
-            elif isinstance(node.op, Input):
-                raise RuntimeError(
-                    f"Input node '{node.label}' (shape={node.shape}) was not provided a value."
-                    + "Pass it in the inputs dict passed to run()."
-                )
-            else:
-                input_values = [intermediates[inp] for inp in node.inputs]
-                intermediates[node] = node.op.compute(input_values)
-        output: list[ndarray] = []
-        for out in outputs:
-            output.append(intermediates[out])
-
-        return output
 
     def replace(self, replacements: dict[Tensor, Tensor]) -> Graph:
         """

@@ -1,4 +1,3 @@
-import numpy as np
 import tmlc
 from tmlc.tsql import Var, Const, Pattern, Ref, EqualTo, match_pattern
 from tmlc.tensor.ops.ops_arithmetic import Add, Mul
@@ -6,8 +5,8 @@ from tmlc.tensor.ops.ops_arithmetic import Matmul
 from tmlc.tensor.traits import Commutative, commutative
 
 x = tmlc.input(shape=(2,), label="x")
-a = tmlc.constant(np.ones((2,)), label="a")
-b = tmlc.constant(np.ones((2,)) * 2, label="b")
+a = tmlc.constant((1.0, 1.0), label="a")
+b = tmlc.constant((2.0, 2.0), label="b")
 
 # x + a + b  ->  Add(Add(x, a), b)
 out = x + a + b
@@ -50,8 +49,8 @@ ref_no_match = list(match_pattern(diff_graph, Pattern(Mul, [Var("v"), Ref("v")])
 assert len(ref_no_match) == 0
 
 # EqualTo: structural equality on distinct objects
-c1 = tmlc.constant(np.ones((2,)))
-c2 = tmlc.constant(np.ones((2,)))  # distinct object, same value
+c1 = tmlc.constant((1.0, 1.0))
+c2 = tmlc.constant((1.0, 1.0))  # distinct object, same value
 assert c1 is not c2
 eq_sum = c1 + c2
 eq_graph = tmlc.Graph([eq_sum])
@@ -59,7 +58,7 @@ eq_matches = list(match_pattern(eq_graph, Pattern(Add, [Var("s"), EqualTo("s")])
 assert len(eq_matches) == 1
 
 # EqualTo does NOT match when values differ
-c3 = tmlc.constant(np.zeros((2,)))
+c3 = tmlc.constant((0.0, 0.0))
 neq_sum = c1 + c3
 neq_graph = tmlc.Graph([neq_sum])
 neq_matches = list(match_pattern(neq_graph, Pattern(Add, [Var("s"), EqualTo("s")])))

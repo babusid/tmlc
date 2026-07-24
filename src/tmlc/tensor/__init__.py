@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .literal import LiteralScalar, LiteralValue
 from .tensor import Tensor, TensorOp
 from . import _operators  # noqa: F401  (attaches Tensor's operator dunders, see tensor.py)
 from .ops.ops_basic import Constant, Input, constant, zeros, ones, input
@@ -26,6 +27,8 @@ from .traits import Commutative, commutative
 __all__ = [
     "Tensor",
     "TensorOp",
+    "LiteralScalar",
+    "LiteralValue",
     "Constant",
     "Input",
     "constant",

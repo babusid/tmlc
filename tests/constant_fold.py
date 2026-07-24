@@ -1,9 +1,11 @@
 import time
 import numpy as np
 import tmlc
+from tmlc.interpreters.graph_interpreter import GraphInterpreter
 from tmlc.transforms import ConstantFold
 
 N = 1000
+interpreter = GraphInterpreter()
 
 x = tmlc.input(shape=(2,), label="x")
 a = tmlc.constant(2, label="a")
@@ -19,10 +21,10 @@ graph = tmlc.Graph([out])
 
 x_val = np.array([1, 2])
 
-out_val_pre = graph.run(inputs={x: x_val})  # warm up allocator and ufunc dispatch cache
+out_val_pre = interpreter.run(graph, inputs={x: x_val})  # warm up allocator and ufunc cache
 start = time.time()
 for _ in range(N):
-    graph.run(inputs={x: x_val})
+    interpreter.run(graph, inputs={x: x_val})
 pre_time = (time.time() - start) / N
 
 print(f"Graph value before opt: {out_val_pre[0]}")
@@ -35,10 +37,10 @@ comp_start = time.time()
 graph = graph.apply_transforms([ConstantFold()])
 comp_time = time.time() - comp_start
 
-out_val_post = graph.run(inputs={x: x_val})  # warm up after transform
+out_val_post = interpreter.run(graph, inputs={x: x_val})  # warm up after transform
 start = time.time()
 for _ in range(N):
-    graph.run(inputs={x: x_val})
+    interpreter.run(graph, inputs={x: x_val})
 post_time = (time.time() - start) / N
 
 print(f"Graph value after opt: {out_val_post[0]}")

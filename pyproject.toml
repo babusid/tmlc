@@ -41,5 +41,6 @@ select = ["E", "F", "W", "D209", "D213"]
 
 [dependency-groups]
 dev = [
+    "numpy>=2.4.6",
     "pre-commit>=4.6.0",
 ]

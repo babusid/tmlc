@@ -1,10 +1,12 @@
 import time
 import numpy as np
 import tmlc
+from tmlc.interpreters.graph_interpreter import GraphInterpreter
 from tmlc.graph import GraphTransform
 from tmlc.transforms import ConstantFold, CSE
 
 N = 1000
+interpreter = GraphInterpreter()
 
 x = tmlc.input(shape=(512,), label="x")
 a = tmlc.constant(2.0, label="a")
@@ -37,18 +39,18 @@ graphs = {name: base_graph.apply_transforms(passes) for name, passes in variants
 x_val = np.arange(512, dtype=float)
 
 # Correctness check before timing
-ref = graphs["raw"].run(inputs={x: x_val})[0]
+ref = interpreter.run(graphs["raw"], inputs={x: x_val})[0]
 for name, graph in graphs.items():
-    result = graph.run(inputs={x: x_val})[0]
+    result = interpreter.run(graph, inputs={x: x_val})[0]
     assert np.allclose(ref, result), f"{name} produced wrong output"
 
 # Timing: warm up then N iterations
 results = {}
 for name, graph in graphs.items():
-    graph.run(inputs={x: x_val})
+    interpreter.run(graph, inputs={x: x_val})
     start = time.time()
     for _ in range(N):
-        graph.run(inputs={x: x_val})
+        interpreter.run(graph, inputs={x: x_val})
     results[name] = {
         "time_us": (time.time() - start) / N * 1e6,
         "nodes": len(graph.topo_sort),
