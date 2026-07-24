@@ -29,6 +29,7 @@ from .index import (
     index_axes,
 )
 from .scalar import ScalarConst, ScalarExpr, ScalarExprBase, ScalarOpKind
+from .verify import VerifyError, verify_block, verify_program
 
 __all__ = [
     "Axis",
@@ -53,4 +54,7 @@ __all__ = [
     "ComputeProgramBuilder",
     "DenseConst",
     "Read",
+    "VerifyError",
+    "verify_block",
+    "verify_program",
 ]
