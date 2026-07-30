@@ -1,19 +1,27 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-from tmlc.compute.compute import ComputeProgramBuilder, ComputeTensor
+from tmlc.compute import ComputeProgramBuilder, ComputeTensor
 from typing_extensions import override
 
 from tmlc.tensor.literal import LiteralValue
 
 
-# Tensor's operator dunders (__add__, __mul__, .T, etc.) are intentionally NOT implemented here.
-# Ops modules need Tensor/TensorOp as base classes, and operators need ops, which would make
-# tensor.py and the ops modules import each other. To keep that a one-directional dependency
-# (ops -> tensor only), the dunders are attached onto this class after the fact by
-# tmlc/_operators.py, which is imported once from tmlc/__init__.py. The signatures below
-# (TYPE_CHECKING-only) exist purely so static analysis and editors know the dunders exist.
+def _ensure_tensor(value: Tensor | float | int) -> Tensor:
+    """Wrap a Python scalar as a constant Tensor; pass a Tensor through unchanged."""
+    if isinstance(value, (int, float)):
+        # deferred import: ops_basic imports Tensor, so a module-top import would cycle
+        from tmlc.tensor.ops.ops_basic import constant
+
+        return constant(value)
+    return value
+
+
+# Tensor's operator dunders (__add__, __mul__, .T, etc.) are defined below with function-local
+# imports of the ops that back them. The ops modules import Tensor/TensorOp as base classes, so a
+# module-top import of the ops here would make tensor.py and the ops modules import each other;
+# deferring each op import into its method keeps the load-time dependency one-directional
+# (ops -> tensor) while the methods stay on the class with real, type-checked signatures.
 class Tensor:
     """
     A Tensor is a node in a computational graph, representing a multi-dimensional array.
@@ -66,20 +74,62 @@ class Tensor:
     def __repr__(self):
         return self.__str__()
 
-    if TYPE_CHECKING:
-        # Real implementations attached by tmlc/_operators.py — see comment above the class.
-        def __add__(self, other: Tensor | float | int) -> Tensor: ...
-        def __radd__(self, other: Tensor | float | int) -> Tensor: ...
-        def __mul__(self, other: Tensor | float | int) -> Tensor: ...
-        def __rmul__(self, other: Tensor | float | int) -> Tensor: ...
-        def __truediv__(self, other: Tensor | float | int) -> Tensor: ...
-        def __sub__(self, other: Tensor | float | int) -> Tensor: ...
-        def __rsub__(self, other: Tensor | float | int) -> Tensor: ...
-        def __neg__(self) -> Tensor: ...
-        def __pow__(self, other: Tensor | float | int) -> Tensor: ...
-        def __matmul__(self, other: Tensor) -> Tensor: ...
-        @property
-        def T(self) -> Tensor: ...
+    # Operator dunders. Each imports its backing op locally; see the comment above the class.
+    def __add__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import add
+
+        return add(self, _ensure_tensor(other))
+
+    def __radd__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import add
+
+        return add(self, _ensure_tensor(other))
+
+    def __mul__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import mul
+
+        return mul(self, _ensure_tensor(other))
+
+    def __rmul__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import mul
+
+        return mul(self, _ensure_tensor(other))
+
+    def __truediv__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import div
+
+        return div(self, _ensure_tensor(other))
+
+    def __sub__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import add, negate
+
+        return add(self, negate(_ensure_tensor(other)))
+
+    def __rsub__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import add, negate
+
+        return add(_ensure_tensor(other), negate(self))
+
+    def __neg__(self) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import negate
+
+        return negate(self)
+
+    def __pow__(self, other: Tensor | float | int) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import power
+
+        return power(self, _ensure_tensor(other))
+
+    def __matmul__(self, other: Tensor) -> Tensor:
+        from tmlc.tensor.ops.ops_arithmetic import mm
+
+        return mm(self, other)
+
+    @property
+    def T(self) -> Tensor:
+        from tmlc.tensor.ops.ops_shape import transpose
+
+        return transpose(self)
 
 
 class TensorOp(ABC):
