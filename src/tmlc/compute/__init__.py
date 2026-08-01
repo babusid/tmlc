@@ -8,18 +8,11 @@ Layering:
 from __future__ import annotations
 
 from .axis import Axis, AxisKind
-from .compute import (
-    Combiner,
-    ComputeBlock,
-    ComputeProgram,
-    ComputeProgramBuilder,
-    ComputeTensor,
-    DenseConst,
-    Read,
-)
 from .index import (
     AxisRef,
+    CompareOp,
     IndexAdd,
+    IndexCompare,
     IndexExpr,
     IndexFloorDiv,
     IndexMod,
@@ -27,8 +20,22 @@ from .index import (
     IntConst,
     as_index,
     index_axes,
+    index_eq,
+    index_ge,
+    index_gt,
+    index_le,
+    index_lt,
+    index_ne,
 )
-from .scalar import ScalarConst, ScalarExpr, ScalarExprBase, ScalarOpKind
+from .program import (
+    Combiner,
+    ComputeBlock,
+    ComputeProgram,
+    ComputeProgramBuilder,
+    ComputeTensor,
+    DenseConst,
+)
+from .scalar import Read, ScalarConst, ScalarExpr, ScalarExprBase, ScalarOpKind, Select
 from .verify import VerifyError, verify_block, verify_program
 
 __all__ = [
@@ -41,6 +48,14 @@ __all__ = [
     "IndexMul",
     "IndexFloorDiv",
     "IndexMod",
+    "IndexCompare",
+    "CompareOp",
+    "index_lt",
+    "index_le",
+    "index_gt",
+    "index_ge",
+    "index_eq",
+    "index_ne",
     "index_axes",
     "as_index",
     "ScalarOpKind",
@@ -54,6 +69,7 @@ __all__ = [
     "ComputeProgramBuilder",
     "DenseConst",
     "Read",
+    "Select",
     "VerifyError",
     "verify_block",
     "verify_program",

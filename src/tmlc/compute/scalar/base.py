@@ -1,10 +1,10 @@
 """
-Scalar expressions for the Compute IR.
+Scalar expressions for the Compute IR: the operator core.
 
 Scalar expressions are dtype-valued and form the body of a ComputeBlock. They are built over tensor
-reads (the `Read` leaf, added once ComputeTensor lands) and scalar constants.
+reads (the `Read` leaf, see `read`) and scalar constants.
 
-Deliberately a SEPARATE hierarchy from IndexExpr (see `index.py`). Index expressions are integer-
+Deliberately a SEPARATE hierarchy from IndexExpr (see `index`). Index expressions are integer-
 valued; scalar values are dtype-valued and may be transcendental. Sharing a base class would let
 `exp(i)` typecheck as an index.
 
@@ -13,6 +13,9 @@ a `ScalarOpKind` to argument expressions -- is `ScalarExpr`.
 
 The operator sugar lives on `ScalarExprBase` so every scalar expression (`Read`, `ScalarConst`,
 `ScalarExpr`) inherits it and trees compose to any depth: `(x[i, k] * w[k, j] - m[i]).exp()`.
+
+This module knows nothing of `index`; the leaves that bridge into the index domain (`Read`,
+`Select`) live in their own modules so this base stays a pure, index-free hierarchy.
 """
 
 from __future__ import annotations

@@ -7,10 +7,11 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from tmlc.compute.axis import Axis, AxisKind
-from tmlc.compute.compute import ComputeBlock, ComputeProgram, Read
 from tmlc.compute.index import (
     AxisRef,
+    CompareOp,
     IndexAdd,
+    IndexCompare,
     IndexExpr,
     IndexFloorDiv,
     IndexMod,
@@ -18,7 +19,8 @@ from tmlc.compute.index import (
     IntConst,
     index_axes,
 )
-from tmlc.compute.scalar import ScalarConst, ScalarExpr, ScalarExprBase
+from tmlc.compute.program import ComputeBlock, ComputeProgram
+from tmlc.compute.scalar import Read, ScalarConst, ScalarExpr, ScalarExprBase, Select
 
 
 class VerifyError(Exception):
@@ -30,6 +32,9 @@ def _reads(body: ScalarExprBase) -> Iterator[Read]:
         yield body
     elif isinstance(body, ScalarConst):
         return
+    elif isinstance(body, Select):
+        yield from _reads(body.if_true)
+        yield from _reads(body.if_false)
     elif isinstance(body, ScalarExpr):
         for arg in body.args:
             yield from _reads(arg)
@@ -38,9 +43,52 @@ def _reads(body: ScalarExprBase) -> Iterator[Read]:
 
 
 def _body_axes(body: ScalarExprBase) -> Iterator[Axis]:
-    for read in _reads(body):
-        for coord in read.index:
+    # A Select condition can reference a domain axis that appears in no read, so walk the body
+    # directly rather than only over reads.
+    if isinstance(body, Read):
+        for coord in body.index:
             yield from index_axes(coord)
+    elif isinstance(body, ScalarConst):
+        return
+    elif isinstance(body, Select):
+        yield from index_axes(body.cond)
+        yield from _body_axes(body.if_true)
+        yield from _body_axes(body.if_false)
+    elif isinstance(body, ScalarExpr):
+        for arg in body.args:
+            yield from _body_axes(arg)
+    else:
+        raise TypeError(f"unknown ScalarExprBase: {type(body).__name__}")
+
+
+_NEGATION: dict[CompareOp, CompareOp] = {
+    CompareOp.LT: CompareOp.GE,
+    CompareOp.LE: CompareOp.GT,
+    CompareOp.GT: CompareOp.LE,
+    CompareOp.GE: CompareOp.LT,
+    CompareOp.EQ: CompareOp.NE,
+    CompareOp.NE: CompareOp.EQ,
+}
+
+
+def _compare_holds(op: CompareOp, lhs: tuple[int, int], rhs: tuple[int, int]) -> bool:
+    """
+    Whether `op` holds (is true) for every (lhs, rhs) pair drawn from the two inclusive ranges.
+    """
+    (lo1, hi1), (lo2, hi2) = lhs, rhs
+    match op:
+        case CompareOp.LT:
+            return hi1 < lo2
+        case CompareOp.LE:
+            return hi1 <= lo2
+        case CompareOp.GT:
+            return lo1 > hi2
+        case CompareOp.GE:
+            return lo1 >= hi2
+        case CompareOp.EQ:
+            return lo1 == hi1 == lo2 == hi2
+        case CompareOp.NE:
+            return hi1 < lo2 or hi2 < lo1
 
 
 def _bounds(expr: IndexExpr) -> tuple[int, int]:
@@ -65,6 +113,20 @@ def _bounds(expr: IndexExpr) -> tuple[int, int]:
         # x % m in [0, m-1]. TODO: if ever too conservative, refine to [lo%m, hi%m] when the
         # operand range doesn't wrap a full period.
         return (0, expr.modulus - 1)
+    if isinstance(expr, IndexCompare):
+        # "totally true" means returning 1 across the whole range. vv for "totally false"
+        # A comparison is totally true only when its negation is totally false.
+        # And, it is false exactly when its negation is totally true.
+        lhs, rhs = _bounds(expr.lhs), _bounds(expr.rhs)
+        # check if the op is true across the entire range
+        totally_true = _compare_holds(expr.op, lhs, rhs)
+        # check if the op's inverse is true across the entire range
+        totally_false = _compare_holds(_NEGATION[expr.op], lhs, rhs)
+        # if op is totally true (tt=1, tf=0) return (1,1)
+        # if op is totally false (tt=0, tf=1), return (0,0)
+        # if op is in the middle ie (tt=0, tf=0), return (0, 1)
+        # note that tt and tf aren't complements!
+        return (int(totally_true), int(not totally_false))
     raise TypeError(f"unknown IndexExpr: {type(expr).__name__}")
 
 

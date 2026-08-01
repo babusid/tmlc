@@ -11,7 +11,7 @@ from tmlc.tensor.literal import (
     LiteralValue,
 )
 from tmlc.tensor.tensor import Tensor, TensorOp
-from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef
 from tmlc.tensor.ops.ops_shape import normalize_axes, broadcast_to, reshape
 

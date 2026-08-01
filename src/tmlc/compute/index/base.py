@@ -1,10 +1,10 @@
 """
-Index expressions for the Compute IR.
+Index expressions for the Compute IR: the affine core.
 
 Index expressions are integer-valued and defined over axes. They are the coordinates at
 which a block's operands are read.
 
-Deliberately a SEPARATE hierarchy from ScalarExpr (see `scalar.py`). Indices are integer-valued;
+Deliberately a SEPARATE hierarchy from ScalarExpr (see `scalar`). Indices are integer-valued;
 scalar values are dtype-valued and may be transcendental. Sharing a base class would let `exp(i)`
 typecheck as an index.
 
@@ -28,6 +28,9 @@ additive one. It also belongs to the read, not the loop: matmul's `i` maps into 
 with different coefficients, so scale/offset live on the IndexExpr, not the shared Axis. Folding a
 constant into an extent-1 axis would further pollute the domain (phantom output dims), break the
 domain-membership check, and clash with the Axis identity semantics constants don't want.
+
+Comparison nodes live in `comparators`; they subclass `BinaryIndex` here so `index_axes` traverses
+them without importing that module.
 """
 
 from __future__ import annotations
@@ -66,6 +69,17 @@ def as_index(value: IndexExpr | StrictInt) -> IndexExpr:
     return IntConst(value)
 
 
+class BinaryIndex(IndexExpr):
+    """
+    Shared base for two-operand index nodes (`IndexAdd`, `IndexMul`, and `IndexCompare` in
+    `comparators`). Lets `index_axes` recurse over any of them with one `isinstance` branch, and
+    lets a comparator subclass live in another module without this one importing it.
+    """
+
+    lhs: IndexExpr
+    rhs: IndexExpr
+
+
 @dataclass(frozen=True)
 class AxisRef(IndexExpr):
     axis: Axis
@@ -77,13 +91,13 @@ class IntConst(IndexExpr):
 
 
 @dataclass(frozen=True)
-class IndexAdd(IndexExpr):
+class IndexAdd(BinaryIndex):
     lhs: IndexExpr
     rhs: IndexExpr
 
 
 @dataclass(frozen=True)
-class IndexMul(IndexExpr):
+class IndexMul(BinaryIndex):
     lhs: IndexExpr
     rhs: IndexExpr
 
@@ -110,7 +124,7 @@ def index_axes(expr: IndexExpr) -> Iterator[Axis]:
         yield expr.axis
     elif isinstance(expr, IntConst):
         return
-    elif isinstance(expr, (IndexAdd, IndexMul)):
+    elif isinstance(expr, BinaryIndex):
         yield from index_axes(expr.lhs)
         yield from index_axes(expr.rhs)
     elif isinstance(expr, (IndexFloorDiv, IndexMod)):

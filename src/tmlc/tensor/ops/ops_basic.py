@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing_extensions import override
 from tmlc.tensor.literal import LiteralData, LiteralValue
 from tmlc.tensor.tensor import Tensor, TensorOp
-from tmlc.compute.compute import ComputeProgramBuilder, ComputeTensor, DenseConst
+from tmlc.compute import ComputeProgramBuilder, ComputeTensor, DenseConst
 
 # The native structure of `ndarray.tolist()`: a scalar, or nested lists of them.
 type _NestedScalars = float | int | list[_NestedScalars]

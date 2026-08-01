@@ -30,10 +30,12 @@ from tmlc.compute import (
     AxisKind,
     AxisRef,
     Combiner,
+    CompareOp,
     ComputeBlock,
     ComputeProgram,
     ComputeTensor,
     IndexAdd,
+    IndexCompare,
     IndexExpr,
     IndexFloorDiv,
     IndexMod,
@@ -44,6 +46,7 @@ from tmlc.compute import (
     ScalarExpr,
     ScalarExprBase,
     ScalarOpKind,
+    Select,
 )
 
 # Scalar body ops. Keyed by ScalarOpKind so the evaluator looks up rather than branches; each entry
@@ -60,6 +63,17 @@ SCALAR_OPS: dict[ScalarOpKind, Callable[..., np.ndarray | np.generic]] = {
     ScalarOpKind.EXP: np.exp,
     ScalarOpKind.LOG: np.log,
     ScalarOpKind.TANH: np.tanh,
+}
+
+# Comparison ops for IndexCompare. Each returns a boolean array; the caller casts to intp so the
+# 0/1 result is an ordinary integer index like every other IndexExpr.
+COMPARE_OPS: dict[CompareOp, Callable[..., np.ndarray | np.generic]] = {
+    CompareOp.LT: np.less,
+    CompareOp.LE: np.less_equal,
+    CompareOp.GT: np.greater,
+    CompareOp.GE: np.greater_equal,
+    CompareOp.EQ: np.equal,
+    CompareOp.NE: np.not_equal,
 }
 
 # Reduction ufunc per combiner. `ufunc.reduce` folds the reduce axes; every extent is >= 1 so the
@@ -91,6 +105,10 @@ def _eval_index(expr: IndexExpr, coords: dict[Axis, np.ndarray]) -> np.ndarray:
         return np.asarray(_eval_index(expr.lhs, coords) // expr.divisor)
     if isinstance(expr, IndexMod):
         return np.asarray(_eval_index(expr.lhs, coords) % expr.modulus)
+    if isinstance(expr, IndexCompare):
+        lhs = _eval_index(expr.lhs, coords)
+        rhs = _eval_index(expr.rhs, coords)
+        return np.asarray(COMPARE_OPS[expr.op](lhs, rhs), dtype=np.intp)
     raise TypeError(f"unknown IndexExpr: {type(expr).__name__}")
 
 
@@ -103,7 +121,8 @@ def _eval_body(
     Evaluate a scalar body expression over the iteration grid.
 
     A Read gathers its operand through the operand's affine index arrays (pure advanced indexing, so
-    broadcast reads and transposes fall out for free); a ScalarExpr applies its op to its args.
+    broadcast reads and transposes fall out for free); a ScalarExpr applies its op to its args; a
+    Select evaluates both branches over the grid and picks per position by its index condition.
     Results are wrapped with asarray because numpy collapses 0-d array arithmetic to scalars.
     """
     if isinstance(expr, ScalarConst):
@@ -112,6 +131,11 @@ def _eval_body(
         array = storage[expr.tensor]
         index = tuple(_eval_index(coordinate, coords) for coordinate in expr.index)
         return np.asarray(array[index])
+    if isinstance(expr, Select):
+        cond = _eval_index(expr.cond, coords)
+        if_true = _eval_body(expr.if_true, coords, storage)
+        if_false = _eval_body(expr.if_false, coords, storage)
+        return np.asarray(np.where(cond != 0, if_true, if_false))
     if isinstance(expr, ScalarExpr):
         args = tuple(_eval_body(arg, coords, storage) for arg in expr.args)
         return np.asarray(SCALAR_OPS[expr.kind](*args))

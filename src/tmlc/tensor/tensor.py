@@ -10,18 +10,12 @@ from tmlc.tensor.literal import LiteralValue
 def _ensure_tensor(value: Tensor | float | int) -> Tensor:
     """Wrap a Python scalar as a constant Tensor; pass a Tensor through unchanged."""
     if isinstance(value, (int, float)):
-        # deferred import: ops_basic imports Tensor, so a module-top import would cycle
         from tmlc.tensor.ops.ops_basic import constant
 
         return constant(value)
     return value
 
 
-# Tensor's operator dunders (__add__, __mul__, .T, etc.) are defined below with function-local
-# imports of the ops that back them. The ops modules import Tensor/TensorOp as base classes, so a
-# module-top import of the ops here would make tensor.py and the ops modules import each other;
-# deferring each op import into its method keeps the load-time dependency one-directional
-# (ops -> tensor) while the methods stay on the class with real, type-checked signatures.
 class Tensor:
     """
     A Tensor is a node in a computational graph, representing a multi-dimensional array.
@@ -74,7 +68,6 @@ class Tensor:
     def __repr__(self):
         return self.__str__()
 
-    # Operator dunders. Each imports its backing op locally; see the comment above the class.
     def __add__(self, other: Tensor | float | int) -> Tensor:
         from tmlc.tensor.ops.ops_arithmetic import add
 

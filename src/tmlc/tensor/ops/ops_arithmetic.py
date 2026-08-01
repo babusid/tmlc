@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing_extensions import override
 from tmlc.tensor.literal import LiteralValue
 from tmlc.tensor.tensor import Tensor, TensorOp
-from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef
 from tmlc.tensor.ops.ops_shape import broadcast_to
 from tmlc.tensor.ops.ops_logarithmic import log

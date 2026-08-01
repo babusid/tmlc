@@ -5,7 +5,7 @@ from typing_extensions import override
 
 from tmlc.tensor.literal import LiteralValue
 from tmlc.tensor.tensor import Tensor, TensorOp
-from tmlc.compute.compute import Combiner, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute import Combiner, ComputeProgramBuilder, ComputeTensor
 from tmlc.compute.index import AxisRef, IndexExpr, IntConst
 from tmlc.compute.scalar import ScalarConst
 

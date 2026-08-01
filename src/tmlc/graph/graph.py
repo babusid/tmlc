@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from functools import reduce
-from tmlc.compute.compute import ComputeProgram, ComputeProgramBuilder, ComputeTensor
+from tmlc.compute import ComputeProgram, ComputeProgramBuilder, ComputeTensor
 from tmlc.tensor.tensor import Tensor
 from tmlc.tensor.ops.ops_basic import Input
 from tmlc.tensor.ops.ops_shape import ones_like, zeros_like
