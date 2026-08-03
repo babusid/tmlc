@@ -1,15 +1,11 @@
 """
-`Combiner` and `ComputeBlock`: one iteration domain, one scalar body, at most one reduction.
+Compute blocks evaluate a scalar body over explicitly retained and reduced axes.
 
-A ComputeBlock has exactly ONE iteration domain, which is the index space of the block's OUTPUT.
-Operands are read at affine index expressions over that domain (see `index`), and the body is a
-scalar expression over those reads (see `scalar`).
-
-    output.shape == tuple(a.extent for a in domain if a.kind is SPATIAL)
-
-Spatial axes survive into the output in domain order (identity write map). Reduce axes are combined
-away by the block's `combiner`; a block has at most ONE combiner shared by all reduce axes, so an op
-needing two different reductions (e.g. logsumexp: max then sum) becomes multiple blocks.
+``output_axes`` directly defines the output dimensions in order. A spatial axis contributes its
+extent; a reduction axis present here contributes a singleton dimension. ``reduce_axes`` are
+quantified by the block's combiner, so a reduction axis can be omitted from ``output_axes``
+(reduced away) or included in it (kept as a singleton dimension). This way, we no longer
+need an explicit keepdims flag or infrastructure.
 """
 
 from __future__ import annotations
@@ -23,13 +19,7 @@ from tmlc.compute.scalar.base import ScalarExprBase, ScalarOpKind
 
 
 class Combiner(Enum):
-    """
-    Reduction combiner. `op` is the binary scalar op applied across a reduce axis; `identity` is
-    the accumulator's init value, so the emitter looks it up rather than switching on the enum.
-
-    `identity` is the float32 identity. It becomes dtype-dependent once integer dtypes exist (int
-    max wants INT_MIN, not -inf).
-    """
+    """A reduction operation and its float accumulator identity."""
 
     SUM = (ScalarOpKind.ADD, 0.0)
     PROD = (ScalarOpKind.MUL, 1.0)
@@ -43,6 +33,7 @@ class Combiner(Enum):
 @dataclass(frozen=True)
 class ComputeBlock:
     output: ComputeTensor
-    domain: tuple[Axis, ...]  # ordered; spatial axes map to output dims in order
+    output_axes: tuple[Axis, ...]
+    reduce_axes: tuple[Axis, ...]
     body: ScalarExprBase
-    combiner: Combiner | None  # non-None iff domain contains a REDUCE axis
+    combiner: Combiner | None  # non-None iff reduce_axes is nonempty

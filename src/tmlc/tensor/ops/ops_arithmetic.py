@@ -10,27 +10,6 @@ from tmlc.tensor.ops.ops_logarithmic import log
 from tmlc.tensor.traits import commutative
 
 
-def _broadcast_shape(shape1: tuple[int, ...], shape2: tuple[int, ...]) -> tuple[int, ...]:
-    rank = max(len(shape1), len(shape2))
-    padded_shape1 = (1,) * (rank - len(shape1)) + shape1
-    padded_shape2 = (1,) * (rank - len(shape2)) + shape2
-
-    output_shape: list[int] = []
-    for dim1, dim2 in zip(padded_shape1, padded_shape2):
-        assert dim1 == dim2 or dim1 == 1 or dim2 == 1, "Input shapes are not broadcastable"
-        output_shape.append(max(dim1, dim2))
-    return tuple(output_shape)
-
-
-def _broadcast_pair(t1: Tensor, t2: Tensor) -> tuple[Tensor, Tensor]:
-    shape = _broadcast_shape(shape1=t1.shape, shape2=t2.shape)
-    if t1.shape != shape:
-        t1 = broadcast_to(t1, shape=shape)
-    if t2.shape != shape:
-        t2 = broadcast_to(t2, shape=shape)
-    return t1, t2
-
-
 @commutative
 class Add(TensorOp):
     @override
@@ -68,10 +47,12 @@ class Add(TensorOp):
         assert len(inputs) == 2, "Add lowering requires exactly 2 input tensors"
         lhs, rhs = inputs
         assert lhs.shape == rhs.shape, "Add lowering requires equal input shapes"
-        domain = tuple(builder.spatial(extent, "add") for extent in lhs.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
+        output_axes = tuple(builder.spatial(extent, "add") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        # construct a ScalarExpr out of two Read leaves
+        # equivalent to ScalarAdd(Read(lhs, index), Read(rhs, index))
         body = lhs[index] + rhs[index]
-        return (builder.compute(domain, body, dtype=lhs.dtype, hint="add"),)
+        return (builder.compute(output_axes=output_axes, body=body, dtype=lhs.dtype, hint="add"),)
 
 
 @commutative
@@ -111,10 +92,12 @@ class Mul(TensorOp):
         assert len(inputs) == 2, "Mul lowering requires exactly 2 input tensors"
         lhs, rhs = inputs
         assert lhs.shape == rhs.shape, "Mul lowering requires equal input shapes"
-        domain = tuple(builder.spatial(extent, "mul") for extent in lhs.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
+        output_axes = tuple(builder.spatial(extent, "mul") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        # Construct a ScalarExpr out of two Read leaves and multiply them
+        # equivalent to ScalarMul(Read(lhs, index), Read(rhs, index))
         body = lhs[index] * rhs[index]
-        return (builder.compute(domain, body, dtype=lhs.dtype, hint="mul"),)
+        return (builder.compute(output_axes=output_axes, body=body, dtype=lhs.dtype, hint="mul"),)
 
 
 class Div(TensorOp):
@@ -156,10 +139,10 @@ class Div(TensorOp):
         assert len(inputs) == 2, "Div lowering requires exactly 2 input tensors"
         lhs, rhs = inputs
         assert lhs.shape == rhs.shape, "Div lowering requires equal input shapes"
-        domain = tuple(builder.spatial(extent, "div") for extent in lhs.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
+        output_axes = tuple(builder.spatial(extent, "div") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
         body = lhs[index] / rhs[index]
-        return (builder.compute(domain, body, dtype=lhs.dtype, hint="div"),)
+        return (builder.compute(output_axes=output_axes, body=body, dtype=lhs.dtype, hint="div"),)
 
 
 class Matmul(TensorOp):
@@ -209,7 +192,14 @@ class Matmul(TensorOp):
         k = builder.reduce(lhs.shape[1], "matmul_k")
         body = lhs[AxisRef(i), AxisRef(k)] * rhs[AxisRef(k), AxisRef(j)]
         return (
-            builder.compute((i, j, k), body, combiner=Combiner.SUM, dtype=lhs.dtype, hint="matmul"),
+            builder.compute(
+                output_axes=(i, j),
+                body=body,
+                reduce_axes=(k,),
+                combiner=Combiner.SUM,
+                dtype=lhs.dtype,
+                hint="matmul",
+            ),
         )
 
 
@@ -247,9 +237,13 @@ class Negate(TensorOp):
     ) -> tuple[ComputeTensor, ...]:
         assert len(inputs) == 1, "Negate lowering requires exactly 1 input tensor"
         (source,) = inputs
-        domain = tuple(builder.spatial(extent, "negate") for extent in source.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
-        return (builder.compute(domain, -source[index], dtype=source.dtype, hint="negate"),)
+        output_axes = tuple(builder.spatial(extent, "negate") for extent in source.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        return (
+            builder.compute(
+                output_axes=output_axes, body=-source[index], dtype=source.dtype, hint="negate"
+            ),
+        )
 
 
 class Pow(TensorOp):
@@ -294,10 +288,38 @@ class Pow(TensorOp):
         assert len(inputs) == 2, "Pow lowering requires exactly 2 input tensors"
         lhs, rhs = inputs
         assert lhs.shape == rhs.shape, "Pow lowering requires equal input shapes"
-        domain = tuple(builder.spatial(extent, "pow") for extent in lhs.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
+        output_axes = tuple(builder.spatial(extent, "pow") for extent in lhs.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
         body = lhs[index] ** rhs[index]
-        return (builder.compute(domain, body, dtype=lhs.dtype, hint="pow"),)
+        return (builder.compute(output_axes=output_axes, body=body, dtype=lhs.dtype, hint="pow"),)
+
+
+def _broadcast_shape(shape1: tuple[int, ...], shape2: tuple[int, ...]) -> tuple[int, ...]:
+    """
+    Compute the broadcasted shape to match two inputs' shapes according to NumPy broadcasting rules.
+    """
+    rank = max(len(shape1), len(shape2))
+    padded_shape1 = (1,) * (rank - len(shape1)) + shape1
+    padded_shape2 = (1,) * (rank - len(shape2)) + shape2
+
+    output_shape: list[int] = []
+    for dim1, dim2 in zip(padded_shape1, padded_shape2):
+        assert dim1 == dim2 or dim1 == 1 or dim2 == 1, "Input shapes are not broadcastable"
+        output_shape.append(max(dim1, dim2))
+    return tuple(output_shape)
+
+
+def _broadcast_pair(t1: Tensor, t2: Tensor) -> tuple[Tensor, Tensor]:
+    """
+    Broadcast a tensor pair to ensure a common shape for element-wise operations.
+    Returns the broadcasted tensors.
+    """
+    shape = _broadcast_shape(shape1=t1.shape, shape2=t2.shape)
+    if t1.shape != shape:
+        t1 = broadcast_to(t1, shape=shape)
+    if t2.shape != shape:
+        t2 = broadcast_to(t2, shape=shape)
+    return t1, t2
 
 
 def add(t1: Tensor, t2: Tensor, label: str | None = None) -> Tensor:

@@ -146,22 +146,24 @@ def _run_block(block: ComputeBlock, storage: dict[ComputeTensor, np.ndarray]) ->
     """
     Execute one block: build its iteration grid, evaluate the body, then fold reduce axes away.
 
-    The body is broadcast to the full domain extents before reduction so a combiner over an axis the
-    body does not depend on still folds the correct number of terms. Spatial axes survive in domain
-    order, which is the block output's identity write map.
+    The body is broadcast to the full iteration extents before reduction so a combiner over an axis
+    the body does not depend on still folds the correct number of terms. Spatial output axes
+    survive in their ``output_axes`` order. A reduction axis included in ``output_axes`` is then
+    inserted as a singleton dimension at that exact position.
     """
-    domain = block.domain
-    extents = tuple(axis.extent for axis in domain)
+    spatial_output_axes = tuple(axis for axis in block.output_axes if axis.kind is AxisKind.SPATIAL)
+    iteration_axes = spatial_output_axes + block.reduce_axes
+    extents = tuple(axis.extent for axis in iteration_axes)
     coords: dict[Axis, np.ndarray] = {}
-    for position, axis in enumerate(domain):
-        shape = [1] * len(domain)
+    for position, axis in enumerate(iteration_axes):
+        shape = [1] * len(iteration_axes)
         shape[position] = axis.extent
         coords[axis] = np.arange(axis.extent, dtype=np.intp).reshape(shape)
 
     body = np.broadcast_to(_eval_body(block.body, coords, storage), extents)
 
     reduce_positions = tuple(
-        position for position, axis in enumerate(domain) if axis.kind is AxisKind.REDUCE
+        position for position, axis in enumerate(iteration_axes) if axis in block.reduce_axes
     )
     if reduce_positions:
         if block.combiner is None:
@@ -171,6 +173,9 @@ def _run_block(block: ComputeBlock, storage: dict[ComputeTensor, np.ndarray]) ->
         result = COMBINER_REDUCE[block.combiner].reduce(body, axis=reduce_positions)
     else:
         result = np.array(body)  # own the buffer; broadcast_to returns a read-only view
+
+    if len(spatial_output_axes) != len(block.output_axes):
+        result = np.asarray(result).reshape(block.output.shape)
 
     return np.asarray(result, dtype=block.output.dtype)
 

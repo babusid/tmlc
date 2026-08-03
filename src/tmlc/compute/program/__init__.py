@@ -1,4 +1,4 @@
-"""Program structure: buffers (`tensor`), `block`, `program`, and the `builder`."""
+"""Compute IR program data structures and builder."""
 
 from __future__ import annotations
 

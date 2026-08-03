@@ -1,10 +1,4 @@
-"""
-`ComputeProgramBuilder`: the accumulation channel used while lowering.
-
-`compute()` records the block and its output tensor internally and returns only the output tensor,
-the handle a consumer needs. Multi-block ops leave every block in the builder and return just their
-final tensor.
-"""
+"""Mutable builder for Compute IR programs."""
 
 from __future__ import annotations
 
@@ -20,7 +14,7 @@ from tmlc.compute.scalar.base import ScalarExprBase
 
 @dataclass
 class ComputeProgramBuilder:
-    """Accumulates blocks and tensors while lowering, then emits a ComputeProgram via `finish`."""
+    """Accumulate blocks and tensors; `compute` returns outputs and `finish` emits a program."""
 
     _blocks: list[ComputeBlock] = field(default_factory=list)
     _tensors: list[ComputeTensor] = field(default_factory=list)
@@ -56,16 +50,23 @@ class ComputeProgramBuilder:
 
     def compute(
         self,
-        domain: tuple[Axis, ...],
+        output_axes: tuple[Axis, ...],
         body: ScalarExprBase,
+        reduce_axes: tuple[Axis, ...] = (),
         combiner: Combiner | None = None,
         dtype: str = "float32",
         hint: str = "t",
     ) -> ComputeTensor:
-        shape = tuple(a.extent for a in domain if a.kind is AxisKind.SPATIAL)
+        shape = tuple(1 if axis.kind is AxisKind.REDUCE else axis.extent for axis in output_axes)
         out = ComputeTensor(self._fresh(hint), shape, dtype)
-        block = ComputeBlock(output=out, domain=domain, body=body, combiner=combiner)
-        # deferred import: verify depends on the program types, so a top-level import would cycle
+        block = ComputeBlock(
+            output=out,
+            output_axes=output_axes,
+            reduce_axes=reduce_axes,
+            body=body,
+            combiner=combiner,
+        )
+        # Import lazily to avoid the verify -> program -> builder cycle.
         from tmlc.compute.verify import verify_block
 
         verify_block(block)

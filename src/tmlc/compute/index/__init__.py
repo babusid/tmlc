@@ -1,4 +1,4 @@
-"""The IndexExpr dialect: affine `base` plus `comparators`."""
+"""Index expressions and comparison builders."""
 
 from __future__ import annotations
 

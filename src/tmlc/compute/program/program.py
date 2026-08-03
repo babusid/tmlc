@@ -1,6 +1,4 @@
-"""
-`ComputeProgram`: a flat, ordered list of blocks plus its inputs, outputs, and constants.
-"""
+"""A flat, ordered Compute IR program."""
 
 from __future__ import annotations
 
@@ -9,17 +7,13 @@ from dataclasses import dataclass
 from tmlc.compute.program.block import ComputeBlock
 from tmlc.compute.program.tensor import ComputeTensor
 
-# A dense constant payload: a scalar, or a (possibly nested) tuple of them. Splat constants are the
-# Fill op (a block).
+# A scalar or nested tuple payload. Splats are represented by compute blocks.
 type DenseConst = float | tuple[DenseConst, ...]
 
 
 @dataclass(frozen=True)
 class ComputeProgram:
-    """
-    Blocks in dependency order. Fields are tuples, not lists: frozen=True is shallow, so a list
-    field would still be mutable via .append().
-    """
+    """A program with dependency-ordered blocks and immutable tuple collections."""
 
     tensors: tuple[ComputeTensor, ...]
     blocks: tuple[ComputeBlock, ...]

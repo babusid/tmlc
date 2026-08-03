@@ -93,9 +93,18 @@ class Transpose(TensorOp):
         source = inputs[0]
         permutation = self._permutation(source.shape)
         output_shape = tuple(source.shape[dim] for dim in permutation)
-        domain = tuple(builder.spatial(extent, "transpose") for extent in output_shape)
-        input_index = tuple(AxisRef(domain[permutation.index(dim)]) for dim in range(len(domain)))
-        return (builder.compute(domain, source[input_index], dtype=source.dtype, hint="transpose"),)
+        output_axes = tuple(builder.spatial(extent, "transpose") for extent in output_shape)
+        input_index = tuple(
+            AxisRef(output_axes[permutation.index(dim)]) for dim in range(len(output_axes))
+        )
+        return (
+            builder.compute(
+                output_axes=output_axes,
+                body=source[input_index],
+                dtype=source.dtype,
+                hint="transpose",
+            ),
+        )
 
 
 class Summation(TensorOp):
@@ -152,18 +161,21 @@ class Summation(TensorOp):
         source = inputs[0]
         normalized = normalize_axes(self.axes, source.shape)
         reduced_axes = set(range(len(source.shape))) if normalized is None else set(normalized)
-        domain = tuple(
+        axes = tuple(
             builder.reduce(extent, "sum_reduce")
             if dim in reduced_axes
             else builder.spatial(extent, "sum_spatial")
             for dim, extent in enumerate(source.shape)
         )
-        index = tuple(AxisRef(axis) for axis in domain)
+        output_axes = tuple(axis for dim, axis in enumerate(axes) if dim not in reduced_axes)
+        reduction_axes = tuple(axis for dim, axis in enumerate(axes) if dim in reduced_axes)
+        index = tuple(AxisRef(axis) for axis in axes)
         return (
             builder.compute(
-                domain,
-                source[index],
-                combiner=Combiner.SUM if reduced_axes else None,
+                output_axes=output_axes,
+                body=source[index],
+                reduce_axes=reduction_axes,
+                combiner=Combiner.SUM if reduction_axes else None,
                 dtype=source.dtype,
                 hint="sum",
             ),
@@ -221,9 +233,14 @@ class Fill(TensorOp):
         self, builder: ComputeProgramBuilder, inputs: tuple[ComputeTensor, ...]
     ) -> tuple[ComputeTensor, ...]:
         assert len(inputs) == 0, "Fill lowering cannot accept input tensors"
-        domain = tuple(builder.spatial(extent, "fill") for extent in self.shape)
+        output_axes = tuple(builder.spatial(extent, "fill") for extent in self.shape)
         return (
-            builder.compute(domain, ScalarConst(float(self.value)), dtype=self.dtype, hint="fill"),
+            builder.compute(
+                output_axes=output_axes,
+                body=ScalarConst(float(self.value)),
+                dtype=self.dtype,
+                hint="fill",
+            ),
         )
 
 
@@ -269,10 +286,10 @@ class Reshape(TensorOp):
         assert len(inputs) == 1, "Reshape lowering requires exactly 1 input tensor"
         source = inputs[0]
         assert prod(source.shape) == prod(self.shape), "Reshape lowering cannot change tensor size"
-        domain = tuple(builder.spatial(extent, "reshape") for extent in self.shape)
+        output_axes = tuple(builder.spatial(extent, "reshape") for extent in self.shape)
 
         linear: IndexExpr = IntConst(0)
-        for dim, axis in enumerate(domain):
+        for dim, axis in enumerate(output_axes):
             stride = prod(self.shape[dim + 1 :])
             term: IndexExpr = AxisRef(axis)
             if stride != 1:
@@ -289,7 +306,12 @@ class Reshape(TensorOp):
             input_index.append(coordinate % extent)
 
         return (
-            builder.compute(domain, source[tuple(input_index)], dtype=source.dtype, hint="reshape"),
+            builder.compute(
+                output_axes=output_axes,
+                body=source[tuple(input_index)],
+                dtype=source.dtype,
+                hint="reshape",
+            ),
         )
 
 
@@ -339,13 +361,20 @@ class BroadcastTo(TensorOp):
         assert len(inputs) == 1, "BroadcastTo lowering requires exactly 1 input tensor"
         source = inputs[0]
         _assert_broadcastable(source.shape, self.shape)
-        domain = tuple(builder.spatial(extent, "broadcast") for extent in self.shape)
+        output_axes = tuple(builder.spatial(extent, "broadcast") for extent in self.shape)
         offset = len(self.shape) - len(source.shape)
         input_index = tuple(
-            IntConst(0) if extent == 1 else AxisRef(domain[offset + dim])
+            IntConst(0) if extent == 1 else AxisRef(output_axes[offset + dim])
             for dim, extent in enumerate(source.shape)
         )
-        return (builder.compute(domain, source[input_index], dtype=source.dtype, hint="broadcast"),)
+        return (
+            builder.compute(
+                output_axes=output_axes,
+                body=source[input_index],
+                dtype=source.dtype,
+                hint="broadcast",
+            ),
+        )
 
 
 def transpose(

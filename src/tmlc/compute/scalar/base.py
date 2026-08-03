@@ -1,21 +1,8 @@
 """
-Scalar expressions for the Compute IR: the operator core.
+Dtype-valued scalar expressions used as ComputeBlock bodies.
 
-Scalar expressions are dtype-valued and form the body of a ComputeBlock. They are built over tensor
-reads (the `Read` leaf, see `read`) and scalar constants.
-
-Deliberately a SEPARATE hierarchy from IndexExpr (see `index`). Index expressions are integer-
-valued; scalar values are dtype-valued and may be transcendental. Sharing a base class would let
-`exp(i)` typecheck as an index.
-
-Naming note: the base of the hierarchy is `ScalarExprBase`; the operation node -- an application of
-a `ScalarOpKind` to argument expressions -- is `ScalarExpr`.
-
-The operator sugar lives on `ScalarExprBase` so every scalar expression (`Read`, `ScalarConst`,
-`ScalarExpr`) inherits it and trees compose to any depth: `(x[i, k] * w[k, j] - m[i]).exp()`.
-
-This module knows nothing of `index`; the leaves that bridge into the index domain (`Read`,
-`Select`) live in their own modules so this base stays a pure, index-free hierarchy.
+Trees contain `Read` and `ScalarConst` leaves, `Select` nodes, and `ScalarExpr` operations.
+Operators on `ScalarExprBase` build these trees and coerce numeric operands to constants.
 """
 
 from __future__ import annotations
@@ -40,53 +27,49 @@ class ScalarOpKind(Enum):
 
 
 class ScalarExprBase:
-    """
-    Base for dtype-valued scalar expressions (the block body).
-
-    Numeric literals in an operand position are coerced to `ScalarConst`, so `x[i] * 0.5` works.
-    """
+    """Common base for nodes in a scalar expression tree."""
 
     def __add__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.ADD, (self, as_scalar(other)))
+        return ScalarAdd((self, as_scalar(other)))
 
     def __radd__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.ADD, (as_scalar(other), self))
+        return ScalarAdd((as_scalar(other), self))
 
     def __sub__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.SUB, (self, as_scalar(other)))
+        return ScalarSub((self, as_scalar(other)))
 
     def __rsub__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.SUB, (as_scalar(other), self))
+        return ScalarSub((as_scalar(other), self))
 
     def __mul__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.MUL, (self, as_scalar(other)))
+        return ScalarMul((self, as_scalar(other)))
 
     def __rmul__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.MUL, (as_scalar(other), self))
+        return ScalarMul((as_scalar(other), self))
 
     def __truediv__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.DIV, (self, as_scalar(other)))
+        return ScalarDiv((self, as_scalar(other)))
 
     def __rtruediv__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.DIV, (as_scalar(other), self))
+        return ScalarDiv((as_scalar(other), self))
 
     def __pow__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.POW, (self, as_scalar(other)))
+        return ScalarPow((self, as_scalar(other)))
 
     def __rpow__(self, other: ScalarExprBase | float | StrictInt) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.POW, (as_scalar(other), self))
+        return ScalarPow((as_scalar(other), self))
 
     def __neg__(self) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.NEG, (self,))
+        return ScalarNeg((self,))
 
     def exp(self) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.EXP, (self,))
+        return ScalarExp((self,))
 
     def log(self) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.LOG, (self,))
+        return ScalarLog((self,))
 
     def tanh(self) -> ScalarExpr:
-        return ScalarExpr(ScalarOpKind.TANH, (self,))
+        return ScalarTanh((self,))
 
 
 @dataclass(frozen=True)
@@ -94,10 +77,60 @@ class ScalarConst(ScalarExprBase):
     value: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ScalarExpr(ScalarExprBase):
     kind: ScalarOpKind
     args: tuple[ScalarExprBase, ...]
+
+    def __new__(cls) -> ScalarExpr:
+        raise TypeError("ScalarExpr cannot be constructed directly; use a typed scalar builder")
+
+
+def _scalar_expr(kind: ScalarOpKind, args: tuple[ScalarExprBase, ...]) -> ScalarExpr:
+    expr = object.__new__(ScalarExpr)
+    object.__setattr__(expr, "kind", kind)
+    object.__setattr__(expr, "args", args)
+    return expr
+
+
+def ScalarAdd(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.ADD, args)
+
+
+def ScalarSub(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.SUB, args)
+
+
+def ScalarMul(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.MUL, args)
+
+
+def ScalarDiv(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.DIV, args)
+
+
+def ScalarNeg(args: tuple[ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.NEG, args)
+
+
+def ScalarExp(args: tuple[ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.EXP, args)
+
+
+def ScalarLog(args: tuple[ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.LOG, args)
+
+
+def ScalarTanh(args: tuple[ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.TANH, args)
+
+
+def ScalarMax(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.MAX, args)
+
+
+def ScalarPow(args: tuple[ScalarExprBase, ScalarExprBase]) -> ScalarExpr:
+    return _scalar_expr(ScalarOpKind.POW, args)
 
 
 def as_scalar(value: ScalarExprBase | float | StrictInt) -> ScalarExprBase:

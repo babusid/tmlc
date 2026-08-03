@@ -1,8 +1,5 @@
 """
 Comparison index expressions for the Compute IR.
-
-A comparison of two index expressions evaluates to the integer 0 or 1: boolean-valued but still
-integer-domain, so it composes with the affine algebra in `base` and gates a `Select`.
 """
 
 from __future__ import annotations
@@ -25,14 +22,7 @@ class CompareOp(Enum):
 
 @dataclass(frozen=True)
 class IndexCompare(BinaryIndex):
-    """
-    A comparison of two index expressions, evaluating to the integer 0 or 1.
-
-    A 0/1 result is an ordinary index, so it composes with the rest of the algebra (a 0/1 mask
-    multiplied onto a coordinate) and gates a `Select`. `op` is the comparison; see the
-    `index_lt`/`index_le`/... constructors below. Built via those, never via Python comparison
-    dunders, whose overload would break the value `__eq__`/`__hash__` that dedup relies on.
-    """
+    """A comparison built with the `index_*` functions below."""
 
     op: CompareOp
     lhs: IndexExpr

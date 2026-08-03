@@ -1,9 +1,4 @@
-"""
-Compute IR for tmlc.
-
-Layering:
-    Graph IR  --lower-->  Compute IR (this package)  --lower-->  Loop IR  --emit-->  C / MSL / CUDA
-"""
+"""Compute IR between the Graph and Loop IRs."""
 
 from __future__ import annotations
 
@@ -35,7 +30,24 @@ from .program import (
     ComputeTensor,
     DenseConst,
 )
-from .scalar import Read, ScalarConst, ScalarExpr, ScalarExprBase, ScalarOpKind, Select
+from .scalar import (
+    Read,
+    ScalarAdd,
+    ScalarConst,
+    ScalarDiv,
+    ScalarExp,
+    ScalarExpr,
+    ScalarExprBase,
+    ScalarLog,
+    ScalarMax,
+    ScalarMul,
+    ScalarNeg,
+    ScalarOpKind,
+    ScalarPow,
+    ScalarSub,
+    ScalarTanh,
+    Select,
+)
 from .verify import VerifyError, verify_block, verify_program
 
 __all__ = [
@@ -62,6 +74,16 @@ __all__ = [
     "ScalarExprBase",
     "ScalarConst",
     "ScalarExpr",
+    "ScalarAdd",
+    "ScalarSub",
+    "ScalarMul",
+    "ScalarDiv",
+    "ScalarNeg",
+    "ScalarExp",
+    "ScalarLog",
+    "ScalarTanh",
+    "ScalarMax",
+    "ScalarPow",
     "ComputeTensor",
     "Combiner",
     "ComputeBlock",

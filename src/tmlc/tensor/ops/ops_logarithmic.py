@@ -50,9 +50,13 @@ class Exp(TensorOp):
     ) -> tuple[ComputeTensor, ...]:
         assert len(inputs) == 1, "Exp lowering requires exactly 1 input tensor"
         (source,) = inputs
-        domain = tuple(builder.spatial(extent, "exp") for extent in source.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
-        return (builder.compute(domain, source[index].exp(), dtype=source.dtype, hint="exp"),)
+        output_axes = tuple(builder.spatial(extent, "exp") for extent in source.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        return (
+            builder.compute(
+                output_axes=output_axes, body=source[index].exp(), dtype=source.dtype, hint="exp"
+            ),
+        )
 
 
 class Log(TensorOp):
@@ -89,9 +93,13 @@ class Log(TensorOp):
     ) -> tuple[ComputeTensor, ...]:
         assert len(inputs) == 1, "Log lowering requires exactly 1 input tensor"
         (source,) = inputs
-        domain = tuple(builder.spatial(extent, "log") for extent in source.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
-        return (builder.compute(domain, source[index].log(), dtype=source.dtype, hint="log"),)
+        output_axes = tuple(builder.spatial(extent, "log") for extent in source.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        return (
+            builder.compute(
+                output_axes=output_axes, body=source[index].log(), dtype=source.dtype, hint="log"
+            ),
+        )
 
 
 class Tanh(TensorOp):
@@ -128,9 +136,13 @@ class Tanh(TensorOp):
     ) -> tuple[ComputeTensor, ...]:
         assert len(inputs) == 1, "Tanh lowering requires exactly 1 input tensor"
         (source,) = inputs
-        domain = tuple(builder.spatial(extent, "tanh") for extent in source.shape)
-        index = tuple(AxisRef(axis) for axis in domain)
-        return (builder.compute(domain, source[index].tanh(), dtype=source.dtype, hint="tanh"),)
+        output_axes = tuple(builder.spatial(extent, "tanh") for extent in source.shape)
+        index = tuple(AxisRef(axis) for axis in output_axes)
+        return (
+            builder.compute(
+                output_axes=output_axes, body=source[index].tanh(), dtype=source.dtype, hint="tanh"
+            ),
+        )
 
 
 class LogSumExp(TensorOp):
@@ -204,44 +216,56 @@ class LogSumExp(TensorOp):
         normalized = normalize_axes(self.axes, source.shape)
         reduced_axes = set(range(len(source.shape))) if normalized is None else set(normalized)
 
-        max_domain = tuple(
+        max_axes = tuple(
             builder.reduce(extent, "logsumexp_max_reduce")
             if dim in reduced_axes
             else builder.spatial(extent, "logsumexp_max_spatial")
             for dim, extent in enumerate(source.shape)
         )
-        max_refs = tuple(AxisRef(axis) for axis in max_domain)
+        max_output_axes = tuple(
+            axis for dim, axis in enumerate(max_axes) if dim not in reduced_axes
+        )
+        max_reduction_axes = tuple(axis for dim, axis in enumerate(max_axes) if dim in reduced_axes)
+        max_refs = tuple(AxisRef(axis) for axis in max_axes)
         maximum = builder.compute(
-            max_domain,
-            source[max_refs],
-            combiner=Combiner.MAX if reduced_axes else None,
+            output_axes=max_output_axes,
+            body=source[max_refs],
+            reduce_axes=max_reduction_axes,
+            combiner=Combiner.MAX if max_reduction_axes else None,
             dtype=source.dtype,
             hint="logsumexp_max",
         )
 
-        sum_domain = tuple(
+        sum_axes = tuple(
             builder.reduce(extent, "logsumexp_sum_reduce")
             if dim in reduced_axes
             else builder.spatial(extent, "logsumexp_sum_spatial")
             for dim, extent in enumerate(source.shape)
         )
-        sum_refs = tuple(AxisRef(axis) for axis in sum_domain)
-        retained_refs = tuple(
-            AxisRef(axis) for dim, axis in enumerate(sum_domain) if dim not in reduced_axes
+        sum_output_axes = tuple(
+            axis for dim, axis in enumerate(sum_axes) if dim not in reduced_axes
         )
+        sum_reduction_axes = tuple(axis for dim, axis in enumerate(sum_axes) if dim in reduced_axes)
+        sum_refs = tuple(AxisRef(axis) for axis in sum_axes)
+        retained_refs = tuple(AxisRef(axis) for axis in sum_output_axes)
         exponentiated = (source[sum_refs] - maximum[retained_refs]).exp()
         summed = builder.compute(
-            sum_domain,
-            exponentiated,
-            combiner=Combiner.SUM if reduced_axes else None,
+            output_axes=sum_output_axes,
+            body=exponentiated,
+            reduce_axes=sum_reduction_axes,
+            combiner=Combiner.SUM if sum_reduction_axes else None,
             dtype=source.dtype,
             hint="logsumexp_sum",
         )
 
-        final_domain = tuple(builder.spatial(extent, "logsumexp") for extent in maximum.shape)
-        final_refs = tuple(AxisRef(axis) for axis in final_domain)
+        output_axes = tuple(builder.spatial(extent, "logsumexp") for extent in maximum.shape)
+        final_refs = tuple(AxisRef(axis) for axis in output_axes)
         result = summed[final_refs].log() + maximum[final_refs]
-        return (builder.compute(final_domain, result, dtype=source.dtype, hint="logsumexp"),)
+        return (
+            builder.compute(
+                output_axes=output_axes, body=result, dtype=source.dtype, hint="logsumexp"
+            ),
+        )
 
 
 def exp(t: Tensor, label: str | None = None) -> Tensor:

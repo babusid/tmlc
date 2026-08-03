@@ -72,9 +72,7 @@ _NEGATION: dict[CompareOp, CompareOp] = {
 
 
 def _compare_holds(op: CompareOp, lhs: tuple[int, int], rhs: tuple[int, int]) -> bool:
-    """
-    Whether `op` holds (is true) for every (lhs, rhs) pair drawn from the two inclusive ranges.
-    """
+    """Return whether `op` holds for every pair in the inclusive ranges."""
     (lo1, hi1), (lo2, hi2) = lhs, rhs
     match op:
         case CompareOp.LT:
@@ -132,26 +130,39 @@ def _bounds(expr: IndexExpr) -> tuple[int, int]:
 
 def verify_block(block: ComputeBlock) -> None:
     name = block.output.name
-    domain_axes = set(block.domain)  # Axis is eq=False, so membership is by identity
+    output_axes = set(block.output_axes)  # Axis is eq=False, so membership is by identity
+    reduce_axes = set(block.reduce_axes)
+    block_axes = output_axes | reduce_axes
 
-    # every axis referenced in the body must belong to the block's domain
+    if len(output_axes) != len(block.output_axes) or len(reduce_axes) != len(block.reduce_axes):
+        raise VerifyError(f"block {name!r}: axes cannot appear more than once")
+    if any(axis.kind is not AxisKind.REDUCE for axis in block.reduce_axes):
+        raise VerifyError(f"block {name!r}: reduce_axes must all be reduction axes")
+    for axis in block.output_axes:
+        if axis.kind is AxisKind.SPATIAL and axis in reduce_axes:
+            raise VerifyError(f"block {name!r}: a spatial output axis cannot be reduced")
+        if axis.kind is AxisKind.REDUCE and axis not in reduce_axes:
+            raise VerifyError(f"block {name!r}: a reduced output axis must also be in reduce_axes")
+
+    # every axis referenced in the body must be explicitly retained or reduced by the block
     for axis in _body_axes(block.body):
-        if axis not in domain_axes:
-            raise VerifyError(f"block {name!r}: axis {axis.name!r} used in body but not in domain")
+        if axis not in block_axes:
+            raise VerifyError(f"block {name!r}: axis {axis.name!r} used in body but not declared")
 
-    # a combiner is present iff the domain has a reduce axis
-    has_reduce = any(axis.kind is AxisKind.REDUCE for axis in block.domain)
+    # a combiner is present iff the block explicitly quantifies reduction axes
+    has_reduce = bool(block.reduce_axes)
     if has_reduce and block.combiner is None:
         raise VerifyError(f"block {name!r}: reduce axis present but no combiner")
     if not has_reduce and block.combiner is not None:
         raise VerifyError(f"block {name!r}: combiner present but no reduce axis")
 
-    # output shape is exactly the spatial extents, in domain order
-    spatial_extents = tuple(a.extent for a in block.domain if a.kind is AxisKind.SPATIAL)
-    if block.output.shape != spatial_extents:
+    output_shape = tuple(
+        1 if axis.kind is AxisKind.REDUCE else axis.extent for axis in block.output_axes
+    )
+    if block.output.shape != output_shape:
         raise VerifyError(
             f"block {name!r}: output shape {block.output.shape} "
-            + f"!= spatial extents {spatial_extents}"
+            + f"!= expected shape {output_shape}"
         )
 
     # each read must index its tensor with one in-bounds coordinate per dimension
