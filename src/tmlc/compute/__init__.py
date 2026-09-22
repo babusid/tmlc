@@ -48,9 +48,12 @@ from .scalar import (
     ScalarTanh,
     Select,
 )
+from .transform import ComputeProgramTransform, apply_transforms
 from .verify import VerifyError, verify_block, verify_program
 
 __all__ = [
+    "ComputeProgramTransform",
+    "apply_transforms",
     "Axis",
     "AxisKind",
     "IndexExpr",

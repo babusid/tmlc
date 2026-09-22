@@ -1,3 +1,5 @@
 **/__pycache__/
 tmlc.egg-info/
 worktrees/
+examples/logreg.c
+examples/artifacts/

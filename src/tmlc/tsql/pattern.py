@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from itertools import permutations
-from typing import Callable, TypeAlias, override
+from typing import TypeAlias, override
+from collections.abc import Callable
 from tmlc import Tensor, Constant
 from tmlc.tensor.traits import Commutative
 
